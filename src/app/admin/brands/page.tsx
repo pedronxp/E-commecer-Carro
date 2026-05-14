@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import DeleteButton from "@/components/DeleteButton";
@@ -28,3 +29,4 @@ export default async function AdminBrandsPage() {
     </div>
   );
 }
+

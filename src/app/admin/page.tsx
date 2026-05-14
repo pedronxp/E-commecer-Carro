@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
@@ -31,3 +32,4 @@ function StatCard({ label, value, href }: { label: string; value: number; href: 
     </Link>
   );
 }
+

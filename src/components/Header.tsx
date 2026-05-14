@@ -13,6 +13,7 @@ export default function Header() {
     if (token) {
       try {
         const payload = JSON.parse(atob(token.split(".")[1]));
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setUser({ name: payload.email, role: payload.role });
       } catch { /* ignore */ }
     }
