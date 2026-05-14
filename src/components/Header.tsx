@@ -1,28 +1,52 @@
 "use client";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+type SessionUser = { name: string; role: string };
+
 export default function Header() {
-  const [user, setUser] = useState<{ name: string; role: string } | null>(null);
+  const [user, setUser] = useState<SessionUser | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [, startTransition] = useTransition();
   const router = useRouter();
 
   useEffect(() => {
-    const token = document.cookie.split("; ").find((c) => c.startsWith("token="));
-    if (token) {
+    let isMounted = true;
+
+    async function loadSession() {
       try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setUser({ name: payload.email, role: payload.role });
-      } catch { /* ignore */ }
+        const response = await fetch("/api/auth/me", { cache: "no-store" });
+        if (!response.ok || !isMounted) return;
+
+        const data = (await response.json()) as {
+          user?: { name?: string; email?: string; role?: string };
+        };
+        if (data.user?.role) {
+          setUser({
+            name: data.user.name ?? data.user.email ?? "Usuário",
+            role: data.user.role,
+          });
+        }
+      } catch {
+        // Sessão ausente ou inválida mantém o cabeçalho no estado público.
+      }
     }
+
+    void loadSession();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  function handleLogout() {
-    document.cookie = "token=; path=/; max-age=0";
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
     setUser(null);
-    router.push("/");
+    startTransition(() => {
+      router.push("/");
+      router.refresh();
+    });
   }
 
   return (
