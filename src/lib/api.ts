@@ -1,19 +1,17 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { verifyToken } from "@/lib/auth";
+import type { UserRole } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 
-export type AuthUser = { id: string; email: string; role: string };
+export type AuthUser = { id: string; email: string; role: UserRole };
 
 export async function getAuthUser(): Promise<AuthUser | null> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("token")?.value;
-  if (!token) return null;
-  try {
-    return verifyToken(token);
-  } catch {
+  const session = await getSession();
+  if (!session) {
     return null;
   }
+
+  return { id: session.sub, email: session.email, role: session.role };
 }
 
 export async function requireAdmin() {

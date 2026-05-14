@@ -2,6 +2,13 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+Create an environment file with the required values before using the auth routes:
+
+```bash
+DATABASE_URL="postgresql://..."
+JWT_SECRET="use-at-least-32-random-characters-here"
+```
+
 First, run the development server:
 
 ```bash
