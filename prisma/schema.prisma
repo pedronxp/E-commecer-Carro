@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  favorites Favorite[]
+  cartItems CartItem[]
+}
+
+model Brand {
+  id   String @id @default(cuid())
+  name String @unique
+  slug String @unique
+
+  cars Car[]
+}
+
+model Category {
+  id   String @id @default(cuid())
+  name String @unique
+  slug String @unique
+
+  cars Car[]
+}
+
+model Car {
+  id           String   @id @default(cuid())
+  title        String
+  slug         String   @unique
+  description  String
+  price        Float
+  year         Int
+  mileage      Int?
+  fuelType     String?
+  transmission String?
+  color        String?
+  doors        Int?
+  capacity     Int?
+  location     String?
+  isSold       Boolean  @default(false)
+  isFeatured   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  brandId    String
+  brand      Brand    @relation(fields: [brandId], references: [id])
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  images    CarImage[]
+  favorites Favorite[]
+  cartItems CartItem[]
+}
+
+model CarImage {
+  id        String  @id @default(cuid())
+  url       String
+  alt       String?
+  isPrimary Boolean @default(false)
+  carId     String
+  car       Car     @relation(fields: [carId], references: [id])
+
+  @@index([carId])
+}
+
+model Favorite {
+  id     String @id @default(cuid())
+  userId String
+  carId  String
+  user   User   @relation(fields: [userId], references: [id])
+  car    Car    @relation(fields: [carId], references: [id])
+
+  @@unique([userId, carId])
+}
+
+model CartItem {
+  id      String   @id @default(cuid())
+  userId  String
+  carId   String
+  user    User     @relation(fields: [userId], references: [id])
+  car     Car      @relation(fields: [carId], references: [id])
+  addedAt DateTime @default(now())
+
+  @@unique([userId, carId])
+}
