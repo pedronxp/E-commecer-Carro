@@ -1,0 +1,33 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireAdmin, handleApiError } from "@/lib/api";
+import { brandSchema } from "@/lib/schemas";
+
+export async function GET() {
+  try {
+    const brands = await prisma.brand.findMany({ orderBy: { name: "asc" } });
+    return NextResponse.json(brands);
+  } catch (error) {
+    return handleApiError(error, "brands.GET");
+  }
+}
+
+export async function POST(request: Request) {
+  const auth = await requireAdmin();
+  if ("error" in auth) return auth.error;
+
+  try {
+    const contentType = request.headers.get("content-type") || "";
+    const raw = contentType.includes("application/json")
+      ? await request.json()
+      : { name: (await request.formData()).get("name") };
+    const data = brandSchema.parse(raw);
+
+    const brand = await prisma.brand.create({
+      data: { name: data.name, slug: data.name.toLowerCase().replace(/\s+/g, "-") },
+    });
+    return NextResponse.json(brand, { status: 201 });
+  } catch (error) {
+    return handleApiError(error, "brands.POST");
+  }
+}

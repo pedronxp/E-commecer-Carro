@@ -34,3 +34,17 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Backend PR Review Skill
+
+This repository includes a local Claude skill for backend PR review:
+
+- Skill: `.claude/skills/backend-pr-reviewer/SKILL.md`
+- Rules: `.claude/skills/skill-rules.json`
+
+When your Claude setup uses the skill activation hooks, the skill is suggested automatically in PR-related prompts and backend review contexts. It returns:
+
+- type suggestion: `feat`, `fix`, or `chore`
+- confidence level
+- short rationale
+- backend risk checklist
