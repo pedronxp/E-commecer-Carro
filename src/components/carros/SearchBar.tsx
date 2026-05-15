@@ -23,7 +23,6 @@ export default function SearchBar() {
         } else {
           params.delete("search")
         }
-        params.delete("page")
         router.push(`/carros?${params.toString()}`)
       }, 300)
     },

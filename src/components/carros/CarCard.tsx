@@ -31,7 +31,7 @@ export default function CarCard({ car, index = 0 }: CarCardProps) {
             🚗
           </div>
           {car.isFeatured && (
-            <span className="absolute left-3 top-3 rounded-full bg-accent px-3 py-1 text-xs font-semibold text-secondary">
+            <span className="absolute left-3 top-3 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-white">
               Destaque
             </span>
           )}
@@ -44,7 +44,7 @@ export default function CarCard({ car, index = 0 }: CarCardProps) {
           <h3 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors">
             {car.title}
           </h3>
-          <div className="mt-2 text-xl font-bold text-accent">
+          <div className="mt-2 text-xl font-bold text-primary">
             {formatPrice(car.price)}
           </div>
 

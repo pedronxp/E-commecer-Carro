@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "HappyRocket - Sua concessionária de luxo",
-  description: "Encontre o carro dos seus sonhos na HappyRocket. Mais de 500 veículos premium com as melhores condições do mercado.",
+  title: "AutoPrime - Sua concessionária de confiança",
+  description: "Encontre o carro ideal na AutoPrime. Veículos seminovos e novos com as melhores condições do mercado.",
 }
 
 export default function RootLayout({
@@ -28,6 +28,7 @@ export default function RootLayout({
     <html
       lang="pt-BR"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col">
         <Header />

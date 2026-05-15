@@ -3,13 +3,15 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Menu, X, Search, ShoppingCart, Car } from "lucide-react"
+import { Car, Search, ShoppingCart, Menu, X } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 
 const navLinks = [
   { href: "/", label: "Home" },
   { href: "/carros", label: "Carros" },
+  { href: "/institucional", label: "Institucional" },
+  { href: "/contato", label: "Contato" },
 ]
 
 export default function Header() {
@@ -21,9 +23,7 @@ export default function Header() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2 text-xl font-bold tracking-tight">
           <Car className="h-6 w-6 text-primary" />
-          <span>
-            <span className="text-primary">Happy</span>Rocket
-          </span>
+          <span>AutoPrime</span>
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">
@@ -49,7 +49,7 @@ export default function Header() {
             <Search className="h-4 w-4" />
           </Link>
           <Link
-            href="#"
+            href="/contato"
             className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-white/10"
           >
             <ShoppingCart className="h-4 w-4" />
@@ -96,13 +96,6 @@ export default function Header() {
                 className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/60 hover:bg-white/5 hover:text-white"
               >
                 <Search className="h-4 w-4" /> Buscar
-              </Link>
-              <Link
-                href="#"
-                onClick={() => setMobileOpen(false)}
-                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/60 hover:bg-white/5 hover:text-white"
-              >
-                <ShoppingCart className="h-4 w-4" /> Carrinho
               </Link>
             </div>
           </motion.div>
