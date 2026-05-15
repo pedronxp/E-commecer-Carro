@@ -1,0 +1,1 @@
+declare module "lucide-react" { export const Car: any; export const ArrowLeft: any; export const MapPin: any; export const Fuel: any; export const Gauge: any; export const Calendar: any; export const Menu: any; export const X: any; export const Search: any; export const ShoppingCart: any; export const ArrowRight: any; export const Sparkles: any; export const RotateCcw: any; }

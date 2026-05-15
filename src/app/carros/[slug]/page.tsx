@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, MapPin, Fuel, Gauge, Calendar, Car } from "lucide-react"
+import { Button } from "@/components/ui/Button"
 import { getCarBySlug } from "@/lib/data"
 import { formatPrice } from "@/lib/utils"
-import { Button } from "@/components/ui/Button"
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -41,7 +41,7 @@ export default async function CarDetailPage({ params }: PageProps) {
                 {car.title}
               </h1>
             </div>
-            <p className="text-3xl font-bold text-accent">{formatPrice(car.price)}</p>
+            <p className="text-3xl font-bold text-primary">{formatPrice(car.price)}</p>
           </div>
 
           <div className="mt-6 grid grid-cols-2 gap-4 rounded-xl bg-surface p-4 sm:grid-cols-4 sm:gap-6 sm:p-6">
@@ -75,12 +75,16 @@ export default async function CarDetailPage({ params }: PageProps) {
           </div>
 
           <div className="mt-8 flex flex-wrap gap-3">
-            <Button size="lg" className="flex-1 sm:flex-none">
-              Solicitar Financiamento
-            </Button>
-            <Button size="lg" variant="outline" className="flex-1 sm:flex-none">
-              Agendar Visita
-            </Button>
+            <Link href="/financiamento">
+              <Button size="lg" className="flex-1 sm:flex-none">
+                Solicitar Financiamento
+              </Button>
+            </Link>
+            <Link href="/contato">
+              <Button size="lg" variant="outline" className="flex-1 sm:flex-none">
+                Agendar Visita
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

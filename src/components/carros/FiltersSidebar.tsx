@@ -26,7 +26,6 @@ export default function FiltersSidebar() {
     } else {
       params.delete(key)
     }
-    params.delete("page")
     router.push(`/carros?${params.toString()}`)
   }
 

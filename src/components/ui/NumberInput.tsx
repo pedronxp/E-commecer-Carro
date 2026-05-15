@@ -1,6 +1,4 @@
-"use client"
-
-import { InputHTMLAttributes, forwardRef } from "react"
+import { forwardRef, type InputHTMLAttributes } from "react"
 import { cn } from "@/lib/utils"
 
 interface NumberInputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -20,7 +18,8 @@ const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
           ref={ref}
           type="number"
           className={cn(
-            "w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-foreground",
+            "w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-foreground placeholder:text-muted",
+            "transition-all duration-200",
             "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary",
             className
           )}
@@ -33,3 +32,4 @@ const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
 NumberInput.displayName = "NumberInput"
 
 export { NumberInput }
+export type { NumberInputProps }
