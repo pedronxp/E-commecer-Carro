@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/Button"
 import { ClipboardCheck, DollarSign, FileText, Truck } from "lucide-react"
 
 export const metadata: Metadata = {
-  title: "Vender Meu Carro - AutoPrime",
-  description: "Venda seu carro para a AutoPrime. Avaliação justa e pagamento rápido.",
+  title: "Vender Meu Carro - Lima Automóveis",
+  description: "Venda seu carro para a Lima Automóveis. Avaliação justa e pagamento rápido.",
 }
 
 const steps = [

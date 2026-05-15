@@ -2,8 +2,8 @@ import type { Metadata } from "next"
 import { Shield, Users, Award, Heart } from "lucide-react"
 
 export const metadata: Metadata = {
-  title: "Institucional - AutoPrime",
-  description: "Conheça a história e os valores da AutoPrime.",
+  title: "Institucional - Lima Automóveis",
+  description: "Conheça a história e os valores da Lima Automóveis.",
 }
 
 const values = [
@@ -17,9 +17,9 @@ export default function InstitucionalPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-foreground sm:text-4xl">Sobre a AutoPrime</h1>
+        <h1 className="text-3xl font-bold text-foreground sm:text-4xl">Sobre a Lima Automóveis</h1>
         <p className="mt-4 text-lg text-muted max-w-2xl mx-auto">
-          Referência no mercado automotivo, a AutoPrime oferece veículos seminovos e novos com procedência,
+          Referência no mercado automotivo, a Lima Automóveis oferece veículos seminovos e novos com procedência,
           garantia e as melhores condições de pagamento.
         </p>
       </div>

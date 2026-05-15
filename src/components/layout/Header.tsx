@@ -1,106 +1,140 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Car, Search, ShoppingCart, Menu, X } from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
+import { Car, Search, Menu, X, Phone } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navLinks = [
   { href: "/", label: "Home" },
   { href: "/carros", label: "Carros" },
+  { href: "/financiamento", label: "Financiamento" },
+  { href: "/vender", label: "Vender" },
   { href: "/institucional", label: "Institucional" },
   { href: "/contato", label: "Contato" },
+  { href: "/faq", label: "FAQ" },
 ]
 
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
   const pathname = usePathname()
 
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20)
+    window.addEventListener("scroll", handleScroll, { passive: true })
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
+
   return (
-    <header className="sticky top-0 z-50 bg-secondary text-white">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex items-center gap-2 text-xl font-bold tracking-tight">
-          <Car className="h-6 w-6 text-primary" />
-          <span>AutoPrime</span>
-        </Link>
+    <header
+      className={cn(
+        "sticky top-0 z-50 transition-all duration-300",
+        scrolled
+          ? "bg-white/95 shadow-md backdrop-blur-md"
+          : "bg-white shadow-sm"
+      )}
+    >
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between gap-4">
+          <Link
+            href="/"
+            className="flex shrink-0 items-center gap-2 text-xl font-bold tracking-tight text-secondary"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
+              <Car className="h-5 w-5 text-white" />
+            </div>
+            <span className="hidden sm:inline">Lima Automóveis</span>
+            <span className="sm:hidden">Lima</span>
+          </Link>
 
-        <nav className="hidden items-center gap-8 md:flex">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={cn(
-                "text-sm font-medium transition-colors hover:text-white",
-                pathname === link.href ? "text-white" : "text-white/60"
-              )}
+          <nav className="hidden items-center gap-1 lg:flex">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={cn(
+                  "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  pathname === link.href
+                    ? "text-primary bg-primary/5"
+                    : "text-muted hover:text-foreground hover:bg-surface"
+                )}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+
+          <div className="hidden items-center gap-3 lg:flex">
+            <a
+              href="tel:+5500000000000"
+              className="flex items-center gap-1.5 text-sm text-muted hover:text-primary transition-colors"
             >
-              {link.label}
+              <Phone className="h-4 w-4" />
+              <span className="hidden xl:inline">(00) 00000-0000</span>
+            </a>
+            <Link
+              href="/carros"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:bg-surface hover:text-primary transition-colors"
+            >
+              <Search className="h-4 w-4" />
             </Link>
-          ))}
-        </nav>
+            <Link
+              href="/financiamento"
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-dark hover:shadow-md"
+            >
+              Financiamento
+            </Link>
+          </div>
 
-        <div className="hidden items-center gap-3 md:flex">
-          <Link
-            href="/carros"
-            className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-white/10"
+          <button
+            className="flex items-center justify-center rounded-lg p-2 text-muted hover:bg-surface lg:hidden"
+            onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"}
           >
-            <Search className="h-4 w-4" />
-          </Link>
-          <Link
-            href="/contato"
-            className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-white/10"
-          >
-            <ShoppingCart className="h-4 w-4" />
-          </Link>
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
-
-        <button
-          className="flex items-center justify-center md:hidden"
-          onClick={() => setMobileOpen(!mobileOpen)}
-          aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"}
-        >
-          {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </button>
       </div>
 
-      <AnimatePresence>
-        {mobileOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden border-t border-white/10 md:hidden"
-          >
-            <div className="space-y-1 px-4 py-4">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMobileOpen(false)}
-                  className={cn(
-                    "block rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                    pathname === link.href
-                      ? "bg-primary/20 text-primary"
-                      : "text-white/60 hover:bg-white/5 hover:text-white"
-                  )}
-                >
-                  {link.label}
-                </Link>
-              ))}
-              <hr className="my-2 border-white/10" />
+      {mobileOpen && (
+        <div className="overflow-hidden border-t border-border lg:hidden">
+          <div className="space-y-1 px-4 py-4">
+            {navLinks.map((link) => (
               <Link
-                href="/carros"
+                key={link.href}
+                href={link.href}
                 onClick={() => setMobileOpen(false)}
-                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/60 hover:bg-white/5 hover:text-white"
+                className={cn(
+                  "block rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  pathname === link.href
+                    ? "bg-primary/5 text-primary"
+                    : "text-muted hover:bg-surface hover:text-foreground"
+                )}
               >
-                <Search className="h-4 w-4" /> Buscar
+                {link.label}
+              </Link>
+            ))}
+            <div className="mt-3 space-y-2 border-t border-border pt-3">
+              <a
+                href="tel:+5500000000000"
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted hover:bg-surface"
+              >
+                <Phone className="h-4 w-4" />
+                (00) 00000-0000
+              </a>
+              <Link
+                href="/financiamento"
+                onClick={() => setMobileOpen(false)}
+                className="mt-2 block rounded-lg bg-primary px-3 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
+              >
+                Simular Financiamento
               </Link>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      )}
     </header>
   )
 }

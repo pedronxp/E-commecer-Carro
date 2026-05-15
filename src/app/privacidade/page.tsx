@@ -1,8 +1,8 @@
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Política de Privacidade - AutoPrime",
-  description: "Política de privacidade e tratamento de dados da AutoPrime.",
+  title: "Política de Privacidade - Lima Automóveis",
+  description: "Política de privacidade e tratamento de dados da Lima Automóveis.",
 }
 
 export default function PrivacidadePage() {
