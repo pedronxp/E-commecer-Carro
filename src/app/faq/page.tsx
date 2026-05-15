@@ -2,8 +2,8 @@ import type { Metadata } from "next"
 import { ChevronDown } from "lucide-react"
 
 export const metadata: Metadata = {
-  title: "FAQ - AutoPrime",
-  description: "Dúvidas frequentes sobre compra, financiamento e venda de veículos na AutoPrime.",
+  title: "FAQ - Lima Automóveis",
+  description: "Dúvidas frequentes sobre compra, financiamento e venda de veículos na Lima Automóveis.",
 }
 
 const faqs = [
@@ -17,7 +17,7 @@ const faqs = [
   },
   {
     q: "Os veículos têm garantia?",
-    a: "Sim. Todos os veículos comercializados pela AutoPrime têm garantia conforme previsto em lei e podem ser estendidos mediante contrato.",
+    a: "Sim. Todos os veículos comercializados pela Lima Automóveis têm garantia conforme previsto em lei e podem ser estendidos mediante contrato.",
   },
   {
     q: "Como funciona a venda do meu carro?",

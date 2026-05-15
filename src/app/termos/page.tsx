@@ -1,8 +1,8 @@
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Termos de Uso - AutoPrime",
-  description: "Termos e condições de uso do site AutoPrime.",
+  title: "Termos de Uso - Lima Automóveis",
+  description: "Termos e condições de uso do site Lima Automóveis.",
 }
 
 export default function TermosPage() {
@@ -15,7 +15,7 @@ export default function TermosPage() {
         <section>
           <h2 className="mb-2 text-lg font-semibold text-foreground">1. Aceitação dos Termos</h2>
           <p>
-            Ao acessar e utilizar o site da AutoPrime, você concorda com os termos e condições aqui descritos.
+            Ao acessar e utilizar o site da Lima Automóveis, você concorda com os termos e condições aqui descritos.
             Se você não concorda com algum destes termos, não utilize nossos serviços.
           </p>
         </section>

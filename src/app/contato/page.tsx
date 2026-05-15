@@ -2,8 +2,8 @@ import type { Metadata } from "next"
 import { Phone, Mail, MapPin, Clock } from "lucide-react"
 
 export const metadata: Metadata = {
-  title: "Contato - AutoPrime",
-  description: "Entre em contato com a AutoPrime. Tire suas dúvidas ou agende uma visita.",
+  title: "Contato - Lima Automóveis",
+  description: "Entre em contato com a Lima Automóveis. Tire suas dúvidas ou agende uma visita.",
 }
 
 const contactInfo = [

@@ -4,7 +4,7 @@ import { CheckCircle, Percent, CalendarDays, CreditCard } from "lucide-react"
 import Link from "next/link"
 
 export const metadata: Metadata = {
-  title: "Financiamento - AutoPrime",
+  title: "Financiamento - Lima Automóveis",
   description: "Simule seu financiamento de veículo com as melhores taxas do mercado.",
 }
 

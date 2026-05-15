@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "AutoPrime - Sua concessionária de confiança",
-  description: "Encontre o carro ideal na AutoPrime. Veículos seminovos e novos com as melhores condições do mercado.",
+  title: "Lima Automóveis - Sua concessionária de confiança",
+  description: "Encontre o carro ideal na Lima Automóveis. Veículos seminovos e novos com as melhores condições do mercado.",
 }
 
 export default function RootLayout({
