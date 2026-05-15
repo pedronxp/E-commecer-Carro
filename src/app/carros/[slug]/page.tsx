@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, MapPin, Fuel, Gauge, Calendar, Car } from "lucide-react"
+import { ArrowLeft, MapPin, Fuel, Gauge, Calendar } from "lucide-react"
 import { Button } from "@/components/ui/Button"
+import CarMediaViewer from "@/components/carros/CarMediaViewer"
 import { getCarBySlug } from "@/lib/data"
 import { formatPrice } from "@/lib/utils"
 
@@ -27,9 +28,7 @@ export default async function CarDetailPage({ params }: PageProps) {
       </Link>
 
       <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
-        <div className="aspect-[21/9] bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-          <Car className="h-20 w-20 text-gray-300" />
-        </div>
+        <CarMediaViewer title={car.title} images={car.images} />
 
         <div className="p-6 sm:p-8">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">

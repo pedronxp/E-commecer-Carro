@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { ArrowRight, Sparkles, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 
@@ -13,7 +14,6 @@ const slides = [
     badge: "Catálogo exclusivo com mais de 500 veículos",
     ctaPrimary: { href: "/carros", label: "Ver Catálogo" },
     ctaSecondary: { href: "/financiamento", label: "Simular Financiamento" },
-    gradient: "from-emerald-700 via-emerald-600 to-secondary",
     accentColor: "text-emerald-300",
     badgeIcon: <Sparkles className="h-4 w-4 text-emerald-300" />,
   },
@@ -24,7 +24,6 @@ const slides = [
     badge: "Taxas a partir de 0,99% ao mês",
     ctaPrimary: { href: "/financiamento", label: "Simular Agora" },
     ctaSecondary: { href: "/carros", label: "Ver Veículos" },
-    gradient: "from-sky-700 via-sky-600 to-secondary",
     accentColor: "text-sky-300",
     badgeIcon: <Sparkles className="h-4 w-4 text-sky-300" />,
   },
@@ -35,7 +34,6 @@ const slides = [
     badge: "Avaliação em até 30 minutos",
     ctaPrimary: { href: "/vender", label: "Avaliar Meu Carro" },
     ctaSecondary: { href: "/contato", label: "Fale Conosco" },
-    gradient: "from-violet-700 via-violet-600 to-secondary",
     accentColor: "text-violet-300",
     badgeIcon: <Sparkles className="h-4 w-4 text-violet-300" />,
   },
@@ -63,11 +61,20 @@ export default function HeroCarousel() {
 
   return (
     <section
-      className={`relative overflow-hidden bg-gradient-to-br ${slide.gradient} px-4 py-24 text-white sm:py-32`}
+      className="relative isolate min-h-[560px] overflow-hidden bg-slate-950 px-4 py-24 text-white sm:py-32"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyek0zNiAyNHYySDI0di0yaDEyeiIvPjwvZz48L2c+PC9zdmc+')] opacity-30" />
+      <Image
+        src="/images/banners/home-hero-safe.png"
+        alt="Carro premium fictÃ­cio em showroom moderno da Lima AutomÃ³veis"
+        fill
+        priority
+        sizes="100vw"
+        className="object-cover"
+      />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,_rgba(2,6,23,0.94)_0%,_rgba(2,6,23,0.82)_38%,_rgba(2,6,23,0.40)_68%,_rgba(2,6,23,0.18)_100%)]" />
+      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-slate-950/45 to-transparent" />
 
       <div className="relative mx-auto max-w-7xl">
         <div key={current} className="max-w-2xl" style={{ animation: "fade-in 0.5s ease-out" }}>

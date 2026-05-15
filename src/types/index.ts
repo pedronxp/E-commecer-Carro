@@ -17,6 +17,7 @@ export interface Car {
   brand: Brand
   category: Category
   images: CarImage[]
+  modelUrl?: string | null
 }
 
 export interface Brand {
