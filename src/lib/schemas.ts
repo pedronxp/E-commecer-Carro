@@ -31,6 +31,7 @@ export const carSchema = z.object({
   doors: z.coerce.number().int().min(1).max(10).nullable().optional(),
   capacity: z.coerce.number().int().min(1).max(20).nullable().optional(),
   location: z.string().trim().max(120).nullable().optional(),
+  features: z.array(z.string().trim().min(1).max(80)).optional(),
   isSold: z.boolean().optional(),
   isFeatured: z.boolean().optional(),
   brandId: z.string().min(1),

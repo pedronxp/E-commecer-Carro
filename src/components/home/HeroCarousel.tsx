@@ -1,42 +1,38 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import Link from "next/link"
+import { useCallback, useEffect, useState } from "react"
 import Image from "next/image"
-import { ArrowRight, Sparkles, ChevronLeft, ChevronRight } from "lucide-react"
-import { Button } from "@/components/ui/Button"
+import Link from "next/link"
+import { ArrowRight, Car, ChevronLeft, ChevronRight, CreditCard, Shield, Sparkles } from "lucide-react"
 
 const slides = [
   {
-    title: "Encontre o carro",
-    highlight: "ideal para você",
-    description: "Os melhores veículos com condições imperdíveis. Financiamento aprovado na hora e entrega em todo Brasil.",
-    badge: "Catálogo exclusivo com mais de 500 veículos",
-    ctaPrimary: { href: "/carros", label: "Ver Catálogo" },
-    ctaSecondary: { href: "/financiamento", label: "Simular Financiamento" },
-    accentColor: "text-emerald-300",
-    badgeIcon: <Sparkles className="h-4 w-4 text-emerald-300" />,
+    title: "Seu próximo carro começa por uma escolha segura",
+    description:
+      "Modelos selecionados, atendimento direto e caminhos claros para comprar, financiar ou vender seu veículo.",
+    primary: { href: "/carros", label: "Ver veículos" },
+    secondary: { href: "/vender", label: "Avaliar meu carro" },
   },
   {
-    title: "Financiamento",
-    highlight: "facilitado",
-    description: "Parcele em até 60x com as melhores taxas do mercado. Aprovação rápida e sem burocracia.",
-    badge: "Taxas a partir de 0,99% ao mês",
-    ctaPrimary: { href: "/financiamento", label: "Simular Agora" },
-    ctaSecondary: { href: "/carros", label: "Ver Veículos" },
-    accentColor: "text-sky-300",
-    badgeIcon: <Sparkles className="h-4 w-4 text-sky-300" />,
+    title: "Financiamento com conversa objetiva",
+    description:
+      "Simule condições, compare opções de entrada e siga com uma proposta bem explicada pela equipe.",
+    primary: { href: "/financiamento", label: "Simular financiamento" },
+    secondary: { href: "/carros", label: "Ver estoque" },
   },
   {
-    title: "Venda seu carro",
-    highlight: "com segurança",
-    description: "Avaliação gratuita e pagamento à vista. Processo rápido e transparente.",
-    badge: "Avaliação em até 30 minutos",
-    ctaPrimary: { href: "/vender", label: "Avaliar Meu Carro" },
-    ctaSecondary: { href: "/contato", label: "Fale Conosco" },
-    accentColor: "text-violet-300",
-    badgeIcon: <Sparkles className="h-4 w-4 text-violet-300" />,
+    title: "Venda seu carro com mais previsibilidade",
+    description:
+      "Envie os dados do veículo, receba orientação de avaliação e avance sem exposição desnecessária.",
+    primary: { href: "/vender", label: "Começar avaliação" },
+    secondary: { href: "/contato", label: "Falar com a loja" },
   },
+]
+
+const shortcuts = [
+  { href: "/carros", icon: Car, label: "Comprar", description: "Ver estoque selecionado" },
+  { href: "/financiamento", icon: CreditCard, label: "Financiar", description: "Simular condições" },
+  { href: "/vender", icon: Shield, label: "Vender", description: "Solicitar avaliação" },
 ]
 
 export default function HeroCarousel() {
@@ -53,7 +49,7 @@ export default function HeroCarousel() {
 
   useEffect(() => {
     if (isPaused) return
-    const timer = setInterval(next, 5000)
+    const timer = setInterval(next, 6500)
     return () => clearInterval(timer)
   }, [next, isPaused])
 
@@ -61,79 +57,112 @@ export default function HeroCarousel() {
 
   return (
     <section
-      className="relative isolate min-h-[560px] overflow-hidden bg-slate-950 px-4 py-24 text-white sm:py-32"
+      className="relative isolate overflow-hidden bg-secondary text-white"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
       <Image
         src="/images/banners/home-hero-safe.png"
-        alt="Carro premium fictÃ­cio em showroom moderno da Lima AutomÃ³veis"
+        alt="Carro premium em showroom moderno da Lima Automóveis"
         fill
         priority
         sizes="100vw"
-        className="object-cover"
+        className="object-cover object-[64%_center]"
       />
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,_rgba(2,6,23,0.94)_0%,_rgba(2,6,23,0.82)_38%,_rgba(2,6,23,0.40)_68%,_rgba(2,6,23,0.18)_100%)]" />
-      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-slate-950/45 to-transparent" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,_rgba(15,23,42,0.92)_0%,_rgba(15,23,42,0.74)_45%,_rgba(15,23,42,0.94)_100%)] lg:bg-[linear-gradient(90deg,_rgba(15,23,42,0.96)_0%,_rgba(15,23,42,0.88)_42%,_rgba(15,23,42,0.42)_74%,_rgba(15,23,42,0.20)_100%)]" />
+      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-secondary/60 to-transparent" />
 
-      <div className="relative mx-auto max-w-7xl">
-        <div key={current} className="max-w-2xl" style={{ animation: "fade-in 0.5s ease-out" }}>
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm font-medium backdrop-blur-sm">
-            {slide.badgeIcon}
-            {slide.badge}
+      <div className="relative mx-auto grid min-h-[540px] max-w-7xl content-center gap-8 px-4 py-12 sm:min-h-[600px] sm:px-6 lg:min-h-[640px] lg:grid-cols-[1.05fr_0.95fr] lg:px-8 lg:py-20">
+        <div key={current} className="max-w-3xl" style={{ animation: "fade-in 0.5s ease-out" }}>
+          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-emerald-100 backdrop-blur-sm sm:text-sm">
+            <Sparkles className="h-4 w-4" />
+            Lima Automóveis
           </div>
-
-          <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-            {slide.title} <br />
-            <span className={slide.accentColor}>{slide.highlight}</span>
+          <h1 className="max-w-[21rem] text-[2rem] font-bold leading-[1.08] sm:max-w-3xl sm:text-5xl lg:text-6xl">
+            {slide.title}
           </h1>
-
-          <p className="mt-6 max-w-lg text-lg leading-relaxed text-white/70">
+          <p className="mt-5 max-w-[21rem] text-sm leading-relaxed text-slate-200 sm:max-w-2xl sm:text-lg">
             {slide.description}
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-4">
-            <Link href={slide.ctaPrimary.href}>
-              <Button size="lg" className="bg-white/20 text-white backdrop-blur-sm hover:bg-white/30">
-                {slide.ctaPrimary.label}
-                <ArrowRight className="h-5 w-5" />
-              </Button>
+          <div className="mt-7 grid gap-3 sm:flex sm:flex-wrap">
+            <Link
+              href={slide.primary.href}
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-primary-dark"
+            >
+              {slide.primary.label}
+              <ArrowRight className="h-5 w-5" />
             </Link>
-            <Link href={slide.ctaSecondary.href}>
-              <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10">
-                {slide.ctaSecondary.label}
-              </Button>
+            <Link
+              href={slide.secondary.href}
+              className="inline-flex min-h-12 items-center justify-center rounded-lg border border-white/25 px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-white/10"
+            >
+              {slide.secondary.label}
             </Link>
           </div>
         </div>
-      </div>
 
-      <button
-        onClick={prev}
-        className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 backdrop-blur-sm transition-colors hover:bg-white/20"
-        aria-label="Slide anterior"
-      >
-        <ChevronLeft className="h-5 w-5" />
-      </button>
-      <button
-        onClick={next}
-        className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 backdrop-blur-sm transition-colors hover:bg-white/20"
-        aria-label="Próximo slide"
-      >
-        <ChevronRight className="h-5 w-5" />
-      </button>
+        <div className="hidden self-end lg:block lg:self-center">
+          <div className="rounded-lg border border-white/15 bg-white/10 p-4 shadow-2xl backdrop-blur-md sm:p-5">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase text-emerald-100">Atendimento rápido</p>
+                <p className="mt-1 text-sm text-slate-200">Escolha o caminho e continue a navegação.</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={prev}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/15 text-white transition-colors hover:bg-white/10"
+                  aria-label="Slide anterior"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={next}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/15 text-white transition-colors hover:bg-white/10"
+                  aria-label="Próximo slide"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
 
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
-        {slides.map((_, idx) => (
-          <button
-            key={idx}
-            onClick={() => setCurrent(idx)}
-            className={`h-2 rounded-full transition-all duration-300 ${
-              idx === current ? "w-8 bg-white" : "w-2 bg-white/40 hover:bg-white/60"
-            }`}
-            aria-label={`Ir para slide ${idx + 1}`}
-          />
-        ))}
+            <div className="grid gap-3">
+              {shortcuts.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="group flex items-center gap-3 rounded-lg border border-white/10 bg-white/8 p-3 transition-colors hover:bg-white/14"
+                >
+                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-emerald-100">
+                    <item.icon className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-white">{item.label}</span>
+                    <span className="block text-xs text-slate-300">{item.description}</span>
+                  </span>
+                  <ArrowRight className="h-4 w-4 text-slate-300 transition-transform group-hover:translate-x-1" />
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="absolute bottom-5 left-1/2 flex -translate-x-1/2 gap-2">
+          {slides.map((_, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => setCurrent(idx)}
+              className={`h-2 rounded-full transition-all duration-300 ${
+                idx === current ? "w-8 bg-white" : "w-2 bg-white/40 hover:bg-white/60"
+              }`}
+              aria-label={`Ir para slide ${idx + 1}`}
+            />
+          ))}
+        </div>
       </div>
     </section>
   )

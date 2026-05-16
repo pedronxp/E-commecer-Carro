@@ -1,6 +1,9 @@
 import { AutoSubmitSelect, ConfirmSubmitButton } from "@/components/admin/AdminFormControls";
+import { hashPassword } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import type { LucideIcon } from "lucide-react";
+import { Heart, KeyRound, Plus, ShieldCheck, ShoppingCart, Trash2, UserRound, Users } from "lucide-react";
 import { revalidatePath } from "next/cache";
 
 export default async function AdminUsersPage() {
@@ -18,7 +21,59 @@ export default async function AdminUsersPage() {
     },
   });
 
+  const adminCount = users.filter((user) => user.role === "ADMIN").length;
+  const activityCount = users.reduce((total, user) => total + user._count.favorites + user._count.cartItems, 0);
+
   logger.adminAction("user_list_loaded", { count: users.length });
+
+  async function createUser(formData: FormData) {
+    "use server";
+
+    const name = String(formData.get("name") || "").trim();
+    const email = String(formData.get("email") || "").trim().toLowerCase();
+    const password = String(formData.get("password") || "");
+    const role = String(formData.get("role") || "USER");
+
+    if (!name || !email || password.length < 8 || !["USER", "ADMIN"].includes(role)) {
+      logger.warn("Blocked invalid admin user creation", { email, role });
+      return;
+    }
+
+    try {
+      await prisma.user.create({
+        data: {
+          name,
+          email,
+          password: await hashPassword(password),
+          role: role as "USER" | "ADMIN",
+        },
+      });
+      logger.adminAction("user_created_by_admin", { email, role });
+      revalidatePath("/admin/users");
+    } catch (error) {
+      logger.error("Failed to create user from admin", { email, error: String(error) });
+      throw error;
+    }
+  }
+
+  async function updatePassword(formData: FormData) {
+    "use server";
+
+    const userId = String(formData.get("userId") || "");
+    const password = String(formData.get("password") || "");
+
+    if (!userId || password.length < 8) {
+      logger.warn("Blocked invalid password update", { userId });
+      return;
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: await hashPassword(password) },
+    });
+    logger.adminAction("user_password_updated", { userId });
+    revalidatePath("/admin/users");
+  }
 
   async function updateRole(formData: FormData) {
     "use server";
@@ -27,11 +82,21 @@ export default async function AdminUsersPage() {
 
     try {
       const oldUser = await prisma.user.findUnique({ where: { id: userId } });
+      if (!oldUser) return;
+
+      if (oldUser.role === "ADMIN" && newRole === "USER") {
+        const admins = await prisma.user.count({ where: { role: "ADMIN" } });
+        if (admins <= 1) {
+          logger.warn("Blocked last admin demotion", { userId });
+          return;
+        }
+      }
+
       await prisma.user.update({
         where: { id: userId },
         data: { role: newRole },
       });
-      logger.adminAction("user_role_updated", { userId, oldRole: oldUser?.role, newRole });
+      logger.adminAction("user_role_updated", { userId, oldRole: oldUser.role, newRole });
       revalidatePath("/admin/users");
     } catch (error) {
       logger.error("Failed to update user role", { userId, error: String(error) });
@@ -45,10 +110,20 @@ export default async function AdminUsersPage() {
 
     try {
       const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) return;
+
+      if (user.role === "ADMIN") {
+        const admins = await prisma.user.count({ where: { role: "ADMIN" } });
+        if (admins <= 1) {
+          logger.warn("Blocked last admin deletion", { userId });
+          return;
+        }
+      }
+
       await prisma.favorite.deleteMany({ where: { userId } });
       await prisma.cartItem.deleteMany({ where: { userId } });
       await prisma.user.delete({ where: { id: userId } });
-      logger.adminAction("user_deleted", { userId, userName: user?.name, userEmail: user?.email });
+      logger.adminAction("user_deleted", { userId, userName: user.name, userEmail: user.email });
       revalidatePath("/admin/users");
     } catch (error) {
       logger.error("Failed to delete user", { userId, error: String(error) });
@@ -57,106 +132,173 @@ export default async function AdminUsersPage() {
   }
 
   return (
-    <div>
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Usuários</h1>
-          <p className="mt-1 text-gray-500">{users.length} usuários cadastrados</p>
+    <div className="space-y-6">
+      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-2">
+          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-emerald-700">Segurança</p>
+          <h1 className="text-2xl font-black text-slate-950">Acessos administrativos</h1>
+          <p className="max-w-2xl text-sm leading-6 text-slate-500">
+            Controle quem pode operar o painel. A rota fica fora do menu principal, mas continua disponível para usuários ADMIN.
+          </p>
         </div>
-      </div>
+      </section>
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[700px]">
-            <thead className="border-b border-gray-200 bg-gray-50">
-              <tr>
-                <th className="text-left px-4 sm:px-6 py-4 text-sm font-medium text-gray-500">Usuário</th>
-                <th className="text-left px-4 sm:px-6 py-4 text-sm font-medium text-gray-500">Email</th>
-                <th className="text-left px-4 sm:px-6 py-4 text-sm font-medium text-gray-500">Função</th>
-                <th className="text-left px-4 sm:px-6 py-4 text-sm font-medium text-gray-500">Atividade</th>
-                <th className="text-left px-4 sm:px-6 py-4 text-sm font-medium text-gray-500">Cadastro</th>
-                <th className="text-left px-4 sm:px-6 py-4 text-sm font-medium text-gray-500">Ações</th>
-              </tr>
-            </thead>
-          <tbody className="divide-y divide-gray-100">
+      <section className="grid gap-4 sm:grid-cols-3">
+        <SummaryCard icon={Users} label="Contas cadastradas" value={users.length} />
+        <SummaryCard icon={ShieldCheck} label="Administradores" value={adminCount} />
+        <SummaryCard icon={Heart} label="Atividades públicas" value={activityCount} />
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-start gap-3">
+          <div className="rounded-xl bg-emerald-50 p-3 text-emerald-700">
+            <Plus className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-slate-950">Cadastrar operador</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Crie contas internas sem liberar cadastro público. Use ADMIN apenas para quem pode operar o painel.
+            </p>
+          </div>
+        </div>
+        <form action={createUser} className="grid gap-3 lg:grid-cols-[1fr_1fr_0.8fr_0.7fr_auto]">
+          <input name="name" required placeholder="Nome do operador" className="rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
+          <input name="email" type="email" required placeholder="email@limaautomoveis.com.br" className="rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
+          <input name="password" type="password" required minLength={8} placeholder="Senha inicial" className="rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
+          <select name="role" defaultValue="USER" className="rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
+            <option value="USER">Operador</option>
+            <option value="ADMIN">Admin</option>
+          </select>
+          <button className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800">
+            <Plus className="h-4 w-4" />
+            Criar
+          </button>
+        </form>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+          <div>
+            <h2 className="font-semibold text-slate-950">Usuários</h2>
+            <p className="text-sm text-slate-500">{users.length} registro(s) encontrados</p>
+          </div>
+        </div>
+
+        {users.length === 0 ? (
+          <div className="px-6 py-12 text-center text-slate-500">
+            <UserRound className="mx-auto mb-4 h-14 w-14 text-slate-300" />
+            <p className="text-lg font-medium text-slate-700">Nenhum usuário cadastrado.</p>
+            <p className="mt-1 text-sm">As contas aparecerão aqui quando forem criadas pelo fluxo administrativo.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
             {users.map((user) => (
-              <tr key={user.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
-                      <span className="text-sm font-medium text-gray-600">
-                        {(user.name ?? "U").charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <span className="font-medium text-gray-900">{user.name ?? "Sem nome"}</span>
+              <article key={user.id} className="grid gap-4 px-5 py-5 lg:grid-cols-[1.2fr_1fr_0.8fr_0.8fr_auto] lg:items-center">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-sm font-bold text-emerald-700">
+                    {(user.name ?? "U").charAt(0).toUpperCase()}
                   </div>
-                </td>
-                <td className="px-6 py-4 text-gray-600">{user.email}</td>
-                <td className="px-6 py-4">
-                  <form action={updateRole}>
-                    <input type="hidden" name="userId" value={user.id} />
-                    <AutoSubmitSelect
-                      name="role"
-                      defaultValue={user.role}
-                      className={`cursor-pointer rounded-lg border-0 px-3 py-1.5 text-sm ${
-                        user.role === "ADMIN"
-                          ? "bg-purple-100 font-medium text-purple-700"
-                          : "bg-gray-100 text-gray-700"
-                      }`}
-                    >
-                      <option value="USER">Usuário</option>
-                      <option value="ADMIN">Admin</option>
-                    </AutoSubmitSelect>
-                  </form>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3 text-sm text-gray-500">
-                    <span className="flex items-center gap-1">
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                      </svg>
-                      {user._count.favorites}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                      </svg>
-                      {user._count.cartItems}
-                    </span>
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-slate-950">{user.name ?? "Sem nome"}</p>
+                    <p className="truncate text-sm text-slate-500">{user.email}</p>
                   </div>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-500">
-                  {new Date(user.createdAt).toLocaleDateString("pt-BR")}
-                </td>
-                <td className="px-6 py-4">
-                  <form action={deleteUser}>
+                </div>
+
+                <form action={updateRole}>
+                  <input type="hidden" name="userId" value={user.id} />
+                  <AutoSubmitSelect
+                    name="role"
+                    defaultValue={user.role}
+                    className={`w-full cursor-pointer rounded-full border px-3 py-2 text-sm font-semibold outline-none transition focus:ring-2 focus:ring-emerald-500/20 lg:w-auto ${
+                      user.role === "ADMIN"
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                        : "border-slate-200 bg-slate-50 text-slate-700"
+                    }`}
+                  >
+                    <option value="USER">Usuário</option>
+                    <option value="ADMIN">Admin</option>
+                  </AutoSubmitSelect>
+                </form>
+
+                <div className="flex items-center gap-4 text-sm text-slate-500">
+                  <span className="inline-flex items-center gap-1">
+                    <Heart className="h-4 w-4" />
+                    {user._count.favorites}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <ShoppingCart className="h-4 w-4" />
+                    {user._count.cartItems}
+                  </span>
+                </div>
+
+                <p className="text-sm text-slate-500">
+                  Cadastro em <span className="font-medium text-slate-700">{new Date(user.createdAt).toLocaleDateString("pt-BR")}</span>
+                </p>
+
+                <form action={deleteUser} className="lg:justify-self-end">
+                  <input type="hidden" name="userId" value={user.id} />
+                  <ConfirmSubmitButton
+                    type="submit"
+                    message={`Remover usuário "${user.name ?? "sem nome"}"?`}
+                    className="inline-flex items-center gap-2 rounded-lg border border-red-100 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 hover:text-red-700"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Remover
+                  </ConfirmSubmitButton>
+                </form>
+
+                <details className="rounded-lg border border-slate-200 bg-slate-50 p-4 lg:col-span-5">
+                  <summary className="cursor-pointer text-sm font-semibold text-slate-800">
+                    Trocar senha deste acesso
+                  </summary>
+                  <form action={updatePassword} className="mt-4 flex flex-col gap-3 sm:flex-row">
                     <input type="hidden" name="userId" value={user.id} />
+                    <input
+                      name="password"
+                      type="password"
+                      minLength={8}
+                      required
+                      placeholder="Nova senha com pelo menos 8 caracteres"
+                      className="flex-1 rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    />
                     <ConfirmSubmitButton
                       type="submit"
-                      message={`Remover usuário "${user.name ?? "sem nome"}"?`}
-                      className="rounded-lg p-2 text-red-600 transition-colors hover:bg-red-50 hover:text-red-700"
+                      message={`Trocar a senha de "${user.name ?? "usuário"}"?`}
+                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
                     >
-                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
+                      <KeyRound className="h-4 w-4" />
+                      Atualizar senha
                     </ConfirmSubmitButton>
                   </form>
-                </td>
-              </tr>
+                </details>
+              </article>
             ))}
-          </tbody>
-          </table>
-        </div>
-
-        {users.length === 0 && (
-          <div className="px-6 py-12 text-center text-gray-500">
-            <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-            <p className="text-lg font-medium text-gray-600">Nenhum usuário cadastrado ainda.</p>
-            <p className="text-sm mt-1">Os usuários aparecerão aqui quando se registrarem.</p>
           </div>
         )}
+      </section>
+    </div>
+  );
+}
+
+function SummaryCard({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-center gap-3">
+        <div className="rounded-xl bg-emerald-50 p-3 text-emerald-700">
+          <Icon className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="text-sm text-slate-500">{label}</p>
+          <p className="text-2xl font-black text-slate-950">{value}</p>
+        </div>
       </div>
     </div>
   );

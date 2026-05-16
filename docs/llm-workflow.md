@@ -40,6 +40,14 @@ The integration between different IDEs is manual and artifact-based:
 
 No role should rely on hidden chat memory from another tool. The handoff artifact is the source of truth.
 
+## Project Setup
+
+Use `docs/agent-swarm-setup.md` as the practical startup guide for Codex IDE plus Opencode in this repository.
+
+Reusable templates:
+- Task Card: `docs/task-cards/_template.md`
+- Review: `docs/reviews/_template.md`
+
 ## Standard Flow
 
 1. Planner creates the task prompt.

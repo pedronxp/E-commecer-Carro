@@ -1,8 +1,13 @@
 export const dynamic = "force-dynamic";
-import { prisma } from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
-import { logger } from "@/lib/logger";
+
 import { ConfirmSubmitButton } from "@/components/admin/AdminFormControls";
+import { CategoryInfoDialog } from "@/components/admin/CategoryInfoDialog";
+import { logger } from "@/lib/logger";
+import { prisma } from "@/lib/prisma";
+import { Layers3, Plus } from "lucide-react";
+import { revalidatePath } from "next/cache";
+
+const suggestedCategories = ["Sedan", "Hatch", "SUV", "Picape", "Moto", "Bike elétrica"];
 
 export default async function AdminCategoriesPage() {
   const categories = await prisma.category.findMany({
@@ -12,12 +17,12 @@ export default async function AdminCategoriesPage() {
 
   async function createCategory(formData: FormData) {
     "use server";
-    const name = formData.get("name") as string;
-    if (!name || !name.trim()) return;
+    const name = String(formData.get("name") || "").trim();
+    if (!name) return;
 
     try {
-      const slug = name.trim().toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-");
-      await prisma.category.create({ data: { name: name.trim(), slug } });
+      const slug = name.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-");
+      await prisma.category.create({ data: { name, slug } });
       logger.adminAction("category_created", { name });
       revalidatePath("/admin/categories");
     } catch (error) {
@@ -28,13 +33,17 @@ export default async function AdminCategoriesPage() {
 
   async function deleteCategory(formData: FormData) {
     "use server";
-    const id = formData.get("id") as string;
+    const id = String(formData.get("id") || "");
 
     try {
-      const cat = await prisma.category.findUnique({ where: { id } });
-      await prisma.car.deleteMany({ where: { categoryId: id } });
+      const category = await prisma.category.findUnique({
+        where: { id },
+        include: { _count: { select: { cars: true } } },
+      });
+      if (!category || category._count.cars > 0) return;
+
       await prisma.category.delete({ where: { id } });
-      logger.adminAction("category_deleted", { categoryId: id, categoryName: cat?.name });
+      logger.adminAction("category_deleted", { categoryId: id, categoryName: category.name });
       revalidatePath("/admin/categories");
     } catch (error) {
       logger.error("Failed to delete category", { categoryId: id, error: String(error) });
@@ -42,67 +51,111 @@ export default async function AdminCategoriesPage() {
     }
   }
 
-  return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Categorias</h1>
-        <p className="text-gray-500 mt-1">{categories.length} categorias cadastradas</p>
-      </div>
+  async function createSuggestedCategories() {
+    "use server";
 
-      <form action={createCategory} className="bg-white border border-gray-200 rounded-xl p-4 mb-6">
-        <div className="flex gap-3">
+    for (const name of suggestedCategories) {
+      const slug = name.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-");
+      await prisma.category.upsert({
+        where: { slug },
+        update: {},
+        create: { name, slug },
+      });
+    }
+
+    logger.adminAction("suggested_categories_seeded", { count: suggestedCategories.length });
+    revalidatePath("/admin/categories");
+  }
+
+  return (
+    <div className="space-y-6">
+      <CategoryInfoDialog />
+      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex items-start gap-3">
+          <div className="rounded-xl bg-emerald-50 p-3 text-emerald-700">
+            <Layers3 className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-emerald-700">Organização</p>
+            <h1 className="mt-1 text-2xl font-black text-slate-950">Categorias / Segmentos</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+              Categoria é o segmento comercial usado para organizar a vitrine, como sedan, hatch, SUV, picape, moto ou bike elétrica.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-semibold text-slate-950">Cadastro de segmento</h2>
+            <p className="text-sm text-slate-500">Crie manualmente ou use as sugestões comerciais iniciais.</p>
+          </div>
+          <form action={createSuggestedCategories}>
+            <button className="rounded-lg border border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50">
+              Criar sugestões
+            </button>
+          </form>
+        </div>
+        <form action={createCategory} className="flex flex-col gap-3 sm:flex-row">
           <input
             name="name"
             placeholder="Nome da nova categoria..."
             required
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="flex-1 rounded-lg border border-slate-300 px-4 py-2 text-sm transition focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
           />
           <button
             type="submit"
-            className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-700 px-5 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-emerald-800"
           >
+            <Plus className="h-4 w-4" />
             Adicionar
           </button>
-        </div>
-      </form>
+        </form>
+      </section>
 
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         {categories.length === 0 ? (
-          <div className="px-6 py-12 text-center text-gray-500">
-            <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-            </svg>
-            <p className="text-lg font-medium text-gray-600">Nenhuma categoria cadastrada.</p>
-            <p className="text-sm mt-1">Adicione a primeira categoria acima.</p>
+          <div className="px-6 py-12 text-center text-slate-500">
+            <Layers3 className="mx-auto mb-4 h-14 w-14 text-slate-300" />
+            <p className="text-lg font-medium text-slate-700">Nenhuma categoria cadastrada.</p>
+            <p className="mt-1 text-sm">Adicione a primeira categoria para organizar a vitrine.</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
-            {categories.map((cat) => (
-              <div key={cat.id} className="flex items-center justify-between px-4 sm:px-6 py-4 hover:bg-gray-50">
+          <div className="divide-y divide-slate-100">
+            {categories.map((category) => (
+              <div key={category.id} className="flex flex-col gap-3 px-5 py-4 transition hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
-                    <span className="text-purple-600 font-medium text-sm">{cat.name.charAt(0).toUpperCase()}</span>
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-sm font-bold text-emerald-700">
+                    {category.name.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <span className="font-medium text-gray-900">{cat.name}</span>
-                    <p className="text-xs text-gray-500">{cat._count.cars} {cat._count.cars === 1 ? "carro" : "carros"}</p>
+                    <span className="font-semibold text-slate-950">{category.name}</span>
+                    <p className="text-xs text-slate-500">{category._count.cars} veículo(s) vinculados</p>
                   </div>
                 </div>
-                <form action={deleteCategory}>
-                  <input type="hidden" name="id" value={cat.id} />
-                  <ConfirmSubmitButton
-                    type="submit"
-                    message={`Excluir a categoria "${cat.name}"?`}
-                    className="px-3 py-1.5 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    Excluir
-                  </ConfirmSubmitButton>
-                </form>
+
+                {category._count.cars > 0 ? (
+                  <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">
+                    Em uso
+                  </span>
+                ) : (
+                  <form action={deleteCategory}>
+                    <input type="hidden" name="id" value={category.id} />
+                    <ConfirmSubmitButton
+                      type="submit"
+                      message={`Excluir a categoria "${category.name}"?`}
+                      className="rounded-lg px-3 py-1.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 hover:text-red-700"
+                    >
+                      Excluir
+                    </ConfirmSubmitButton>
+                  </form>
+                )}
               </div>
             ))}
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

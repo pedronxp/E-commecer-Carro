@@ -1,8 +1,10 @@
 export const dynamic = "force-dynamic";
-import { prisma } from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
-import { logger } from "@/lib/logger";
+
 import { ConfirmSubmitButton } from "@/components/admin/AdminFormControls";
+import { logger } from "@/lib/logger";
+import { prisma } from "@/lib/prisma";
+import { Factory, Plus } from "lucide-react";
+import { revalidatePath } from "next/cache";
 
 export default async function AdminBrandsPage() {
   const brands = await prisma.brand.findMany({
@@ -12,12 +14,12 @@ export default async function AdminBrandsPage() {
 
   async function createBrand(formData: FormData) {
     "use server";
-    const name = formData.get("name") as string;
-    if (!name || !name.trim()) return;
+    const name = String(formData.get("name") || "").trim();
+    if (!name) return;
 
     try {
-      const slug = name.trim().toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-");
-      await prisma.brand.create({ data: { name: name.trim(), slug } });
+      const slug = name.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-");
+      await prisma.brand.create({ data: { name, slug } });
       logger.adminAction("brand_created", { name });
       revalidatePath("/admin/brands");
     } catch (error) {
@@ -28,13 +30,17 @@ export default async function AdminBrandsPage() {
 
   async function deleteBrand(formData: FormData) {
     "use server";
-    const id = formData.get("id") as string;
+    const id = String(formData.get("id") || "");
 
     try {
-      const brand = await prisma.brand.findUnique({ where: { id } });
-      await prisma.car.deleteMany({ where: { brandId: id } });
+      const brand = await prisma.brand.findUnique({
+        where: { id },
+        include: { _count: { select: { cars: true } } },
+      });
+      if (!brand || brand._count.cars > 0) return;
+
       await prisma.brand.delete({ where: { id } });
-      logger.adminAction("brand_deleted", { brandId: id, brandName: brand?.name });
+      logger.adminAction("brand_deleted", { brandId: id, brandName: brand.name });
       revalidatePath("/admin/brands");
     } catch (error) {
       logger.error("Failed to delete brand", { brandId: id, error: String(error) });
@@ -43,66 +49,82 @@ export default async function AdminBrandsPage() {
   }
 
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Marcas</h1>
-        <p className="text-gray-500 mt-1">{brands.length} marcas cadastradas</p>
-      </div>
+    <div className="space-y-6">
+      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex items-start gap-3">
+          <div className="rounded-xl bg-emerald-50 p-3 text-emerald-700">
+            <Factory className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-emerald-700">Catálogo</p>
+            <h1 className="mt-1 text-2xl font-black text-slate-950">Marcas / Fabricantes</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+              Marca é o fabricante do veículo, como Toyota, Honda, Yamaha ou Oggi. Ela aparece no cadastro, filtros e cards da vitrine.
+            </p>
+          </div>
+        </div>
+      </section>
 
-      <form action={createBrand} className="bg-white border border-gray-200 rounded-xl p-4 mb-6">
-        <div className="flex gap-3">
+      <form action={createBrand} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row">
           <input
             name="name"
             placeholder="Nome da nova marca..."
             required
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="flex-1 rounded-lg border border-slate-300 px-4 py-2 text-sm transition focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
           />
           <button
             type="submit"
-            className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-700 px-5 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-emerald-800"
           >
+            <Plus className="h-4 w-4" />
             Adicionar
           </button>
         </div>
       </form>
 
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         {brands.length === 0 ? (
-          <div className="px-6 py-12 text-center text-gray-500">
-            <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-            </svg>
-            <p className="text-lg font-medium text-gray-600">Nenhuma marca cadastrada.</p>
-            <p className="text-sm mt-1">Adicione a primeira marca acima.</p>
+          <div className="px-6 py-12 text-center text-slate-500">
+            <Factory className="mx-auto mb-4 h-14 w-14 text-slate-300" />
+            <p className="text-lg font-medium text-slate-700">Nenhuma marca cadastrada.</p>
+            <p className="mt-1 text-sm">Adicione a primeira marca para cadastrar veículos.</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-slate-100">
             {brands.map((brand) => (
-              <div key={brand.id} className="flex items-center justify-between px-4 sm:px-6 py-4 hover:bg-gray-50">
+              <div key={brand.id} className="flex flex-col gap-3 px-5 py-4 transition hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center">
-                    <span className="text-indigo-600 font-medium text-sm">{brand.name.charAt(0).toUpperCase()}</span>
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-sm font-bold text-emerald-700">
+                    {brand.name.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <span className="font-medium text-gray-900">{brand.name}</span>
-                    <p className="text-xs text-gray-500">{brand._count.cars} {brand._count.cars === 1 ? "carro" : "carros"}</p>
+                    <span className="font-semibold text-slate-950">{brand.name}</span>
+                    <p className="text-xs text-slate-500">{brand._count.cars} veículo(s) vinculados</p>
                   </div>
                 </div>
-                <form action={deleteBrand}>
-                  <input type="hidden" name="id" value={brand.id} />
-                  <ConfirmSubmitButton
-                    type="submit"
-                    message={`Excluir a marca "${brand.name}"?`}
-                    className="px-3 py-1.5 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    Excluir
-                  </ConfirmSubmitButton>
-                </form>
+
+                {brand._count.cars > 0 ? (
+                  <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">
+                    Em uso
+                  </span>
+                ) : (
+                  <form action={deleteBrand}>
+                    <input type="hidden" name="id" value={brand.id} />
+                    <ConfirmSubmitButton
+                      type="submit"
+                      message={`Excluir a marca "${brand.name}"?`}
+                      className="rounded-lg px-3 py-1.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 hover:text-red-700"
+                    >
+                      Excluir
+                    </ConfirmSubmitButton>
+                  </form>
+                )}
               </div>
             ))}
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

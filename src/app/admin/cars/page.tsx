@@ -1,10 +1,23 @@
 export const dynamic = "force-dynamic";
+
 import Image from "next/image";
 import Link from "next/link";
+import { Eye, Plus, Sparkles, Star, Trash2 } from "lucide-react";
 import { ConfirmSubmitButton } from "@/components/admin/AdminFormControls";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
+
+const vehicleTypeLabels = {
+  CAR: "Carro",
+  MOTORCYCLE: "Moto",
+  ELECTRIC_BIKE: "Bike elétrica",
+} as const;
+
+const conditionLabels = {
+  NEW: "Novo",
+  USED: "Segunda mão",
+} as const;
 
 export default async function AdminCarsPage({
   searchParams,
@@ -16,7 +29,7 @@ export default async function AdminCarsPage({
   const status = params.status || "all";
   const brandFilter = params.brand || "all";
 
-  logger.dbOperation("car_list_access", { query, status, brandFilter });
+  logger.dbOperation("vehicle_list_access", { query, status, brandFilter });
 
   const where = {
     ...(query && {
@@ -28,6 +41,7 @@ export default async function AdminCarsPage({
     ...(status === "sold" && { isSold: true }),
     ...(status === "stock" && { isSold: false }),
     ...(status === "featured" && { isFeatured: true }),
+    ...(status === "promotion" && { isPromotion: true }),
     ...(brandFilter !== "all" && { brandId: brandFilter }),
   };
 
@@ -40,8 +54,6 @@ export default async function AdminCarsPage({
     prisma.brand.findMany({ orderBy: { name: "asc" } }),
   ]);
 
-  logger.adminAction("car_list_loaded", { count: cars.length, filters: { query, status, brandFilter } });
-
   async function deleteCar(formData: FormData) {
     "use server";
     const carId = formData.get("carId") as string;
@@ -52,10 +64,11 @@ export default async function AdminCarsPage({
       await prisma.favorite.deleteMany({ where: { carId } });
       await prisma.cartItem.deleteMany({ where: { carId } });
       await prisma.car.delete({ where: { id: carId } });
-      logger.adminAction("car_deleted", { carId, carTitle: car?.title });
+      logger.adminAction("vehicle_deleted", { carId, carTitle: car?.title });
       revalidatePath("/admin/cars");
+      revalidatePath("/admin");
     } catch (error) {
-      logger.error("Failed to delete car", { carId, error: String(error) });
+      logger.error("Failed to delete vehicle", { carId, error: String(error) });
       throw error;
     }
   }
@@ -64,225 +77,207 @@ export default async function AdminCarsPage({
     "use server";
     const carId = formData.get("carId") as string;
 
-    try {
-      const car = await prisma.car.findUnique({ where: { id: carId } });
-      if (car) {
-        const newValue = !car.isFeatured;
-        await prisma.car.update({ where: { id: carId }, data: { isFeatured: newValue } });
-        logger.adminAction("car_featured_toggled", { carId, carTitle: car.title, isFeatured: newValue });
-        revalidatePath("/admin/cars");
-      }
-    } catch (error) {
-      logger.error("Failed to toggle car featured", { carId, error: String(error) });
-      throw error;
-    }
+    const car = await prisma.car.findUnique({ where: { id: carId } });
+    if (!car) return;
+
+    await prisma.car.update({ where: { id: carId }, data: { isFeatured: !car.isFeatured } });
+    revalidatePath("/admin/cars");
+    revalidatePath("/admin");
   }
 
   async function toggleSold(formData: FormData) {
     "use server";
     const carId = formData.get("carId") as string;
 
-    try {
-      const car = await prisma.car.findUnique({ where: { id: carId } });
-      if (car) {
-        const newValue = !car.isSold;
-        await prisma.car.update({ where: { id: carId }, data: { isSold: newValue } });
-        logger.adminAction("car_sold_toggled", { carId, carTitle: car.title, isSold: newValue });
-        revalidatePath("/admin/cars");
-      }
-    } catch (error) {
-      logger.error("Failed to toggle car sold status", { carId, error: String(error) });
-      throw error;
-    }
+    const car = await prisma.car.findUnique({ where: { id: carId } });
+    if (!car) return;
+
+    await prisma.car.update({ where: { id: carId }, data: { isSold: !car.isSold } });
+    revalidatePath("/admin/cars");
+    revalidatePath("/admin");
   }
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Carros</h1>
-          <p className="text-gray-500 mt-1">{cars.length} resultados</p>
+          <p className="text-sm font-semibold uppercase text-emerald-700">Catálogo operacional</p>
+          <h1 className="text-2xl font-bold text-slate-950">Estoque</h1>
+          <p className="mt-1 text-slate-500">{cars.length} veículos encontrados</p>
         </div>
         <Link
           href="/admin/cars-new"
-          className="inline-flex items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Novo Carro
+          <Plus className="h-4 w-4" />
+          Novo veículo
         </Link>
       </div>
 
-      {/* Filters */}
-      <form className="bg-white border border-gray-200 rounded-xl p-4 mb-6">
+      <form className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
         <div className="flex flex-wrap gap-4">
-          <div className="flex-1 min-w-[200px]">
-            <input
-              name="q"
-              defaultValue={query}
-              placeholder="Buscar por título ou descrição..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
-          </div>
+          <input
+            name="q"
+            defaultValue={query}
+            placeholder="Buscar por título ou descrição..."
+            className="min-w-[220px] flex-1 rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+          />
           <select
             name="status"
             defaultValue={status}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
           >
-            <option value="all">Todos Status</option>
-            <option value="stock">Em Estoque</option>
+            <option value="all">Todos os status</option>
+            <option value="stock">Em estoque</option>
             <option value="sold">Vendidos</option>
-            <option value="featured">Destacados</option>
+            <option value="featured">Destaques</option>
+            <option value="promotion">Promoções</option>
           </select>
           <select
             name="brand"
             defaultValue={brandFilter}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
           >
-            <option value="all">Todas Marcas</option>
+            <option value="all">Todas as marcas</option>
             {brands.map((brand) => (
               <option key={brand.id} value={brand.id}>
                 {brand.name}
               </option>
             ))}
           </select>
-          <button
-            type="submit"
-            className="px-6 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
-          >
+          <button type="submit" className="rounded-lg bg-slate-900 px-6 py-2 text-sm font-semibold text-white transition hover:bg-slate-800">
             Filtrar
           </button>
         </div>
       </form>
 
-      {/* Table */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px]">
-            <thead className="bg-gray-50 border-b border-gray-200">
+          <table className="w-full min-w-[1080px]">
+            <thead className="border-b border-slate-200 bg-slate-50">
               <tr>
-                <th className="text-left px-4 sm:px-6 py-4 text-sm font-medium text-gray-500">Imagem</th>
-                <th className="text-left px-4 sm:px-6 py-4 text-sm font-medium text-gray-500">Título</th>
-                <th className="text-left px-4 sm:px-6 py-4 text-sm font-medium text-gray-500">Marca</th>
-                <th className="text-left px-4 sm:px-6 py-4 text-sm font-medium text-gray-500">Ano</th>
-                <th className="text-left px-4 sm:px-6 py-4 text-sm font-medium text-gray-500">Preço</th>
-                <th className="text-left px-4 sm:px-6 py-4 text-sm font-medium text-gray-500">Status</th>
-                <th className="text-left px-4 sm:px-6 py-4 text-sm font-medium text-gray-500">Ações</th>
+                <th className="px-5 py-4 text-left text-sm font-medium text-slate-500">Imagem</th>
+                <th className="px-5 py-4 text-left text-sm font-medium text-slate-500">Veículo</th>
+                <th className="px-5 py-4 text-left text-sm font-medium text-slate-500">Tipo</th>
+                <th className="px-5 py-4 text-left text-sm font-medium text-slate-500">Ano</th>
+                <th className="px-5 py-4 text-left text-sm font-medium text-slate-500">Preço/FIPE</th>
+                <th className="px-5 py-4 text-left text-sm font-medium text-slate-500">Margem</th>
+                <th className="px-5 py-4 text-left text-sm font-medium text-slate-500">Status</th>
+                <th className="px-5 py-4 text-left text-sm font-medium text-slate-500">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {cars.map((car) => (
-                <tr key={car.id} className="hover:bg-gray-50">
-                  <td className="px-4 sm:px-6 py-4">
-                    <div className="relative w-16 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
-                      {car.images[0]?.url ? (
-                        <Image
-                          src={car.images[0].url}
-                          alt=""
-                          fill
-                          sizes="64px"
-                          className="object-cover"
-                        />
+            <tbody className="divide-y divide-slate-100">
+              {cars.map((car) => {
+                const discount =
+                  car.fipePrice && car.fipePrice > car.price
+                    ? Math.round(((car.fipePrice - car.price) / car.fipePrice) * 100)
+                    : 0;
+                const grossMargin = car.purchasePrice ? car.price - car.purchasePrice : null;
+
+                return (
+                  <tr key={car.id} className="hover:bg-slate-50">
+                    <td className="px-5 py-4">
+                      <div className="relative h-12 w-16 overflow-hidden rounded-lg bg-slate-100">
+                        {car.images[0]?.url ? (
+                          <Image src={car.images[0].url} alt="" fill sizes="64px" className="object-cover" />
+                        ) : null}
+                      </div>
+                    </td>
+                    <td className="px-5 py-4">
+                      <p className="max-w-[260px] truncate font-semibold text-slate-950">{car.title}</p>
+                      <p className="text-xs text-slate-500">{car.brand.name} · {car.category?.name}</p>
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                        {vehicleTypeLabels[car.vehicleType]}
+                      </span>
+                      <p className="mt-1 text-xs text-slate-500">{conditionLabels[car.condition]}</p>
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">{car.year}</td>
+                    <td className="px-5 py-4">
+                      <p className="font-semibold text-slate-950">
+                        {car.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                      </p>
+                      {discount > 0 ? (
+                        <p className="mt-1 text-xs font-semibold text-emerald-700">{discount}% abaixo da FIPE</p>
+                      ) : null}
+                    </td>
+                    <td className="px-5 py-4">
+                      {grossMargin !== null ? (
+                        <>
+                          <p className={grossMargin >= 0 ? "font-semibold text-emerald-700" : "font-semibold text-red-700"}>
+                            {grossMargin.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Custo {car.purchasePrice?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                          </p>
+                        </>
                       ) : (
-                        <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
+                        <span className="text-sm text-slate-400">Sem custo</span>
                       )}
-                    </div>
-                  </td>
-                  <td className="px-4 sm:px-6 py-4">
-                    <div className="min-w-0">
-                      <p className="font-medium text-gray-900 truncate max-w-[200px]">{car.title}</p>
-                      <p className="text-xs text-gray-500">{car.category?.name}</p>
-                    </div>
-                  </td>
-                  <td className="px-4 sm:px-6 py-4 text-gray-600">{car.brand.name}</td>
-                  <td className="px-4 sm:px-6 py-4 text-gray-600">{car.year}</td>
-                  <td className="px-4 sm:px-6 py-4 font-medium text-gray-900">
-                    R$ {car.price.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                  </td>
-                  <td className="px-4 sm:px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <form action={toggleSold}>
-                        <input type="hidden" name="carId" value={car.id} />
-                        <button
-                          type="submit"
-                          className={`text-xs px-2 py-1 rounded cursor-pointer ${
-                            car.isSold
-                              ? "bg-green-100 text-green-700"
-                              : "bg-blue-100 text-blue-700"
-                          }`}
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex flex-wrap gap-2">
+                        <form action={toggleSold}>
+                          <input type="hidden" name="carId" value={car.id} />
+                          <button
+                            type="submit"
+                            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${car.isSold ? "bg-slate-100 text-slate-700" : "bg-emerald-50 text-emerald-700"}`}
+                          >
+                            {car.isSold ? "Vendido" : "Estoque"}
+                          </button>
+                        </form>
+                        {car.isFeatured ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Destaque</span> : null}
+                        {car.isPromotion ? <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Promoção</span> : null}
+                      </div>
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-1">
+                        <form action={toggleFeatured}>
+                          <input type="hidden" name="carId" value={car.id} />
+                          <button
+                            type="submit"
+                            className={`rounded-lg p-2 transition ${car.isFeatured ? "text-amber-600 hover:bg-amber-50" : "text-slate-400 hover:bg-slate-100"}`}
+                            title={car.isFeatured ? "Remover destaque" : "Destacar"}
+                          >
+                            <Star className="h-5 w-5" />
+                          </button>
+                        </form>
+                        <Link
+                          href={`/carros/${car.slug}`}
+                          className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                          title="Ver vitrine"
+                          target="_blank"
                         >
-                          {car.isSold ? "Vendido" : "Estoque"}
-                        </button>
-                      </form>
-                      {car.isFeatured && (
-                        <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded">
-                          ⭐ Destaque
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 sm:px-6 py-4">
-                    <div className="flex items-center gap-1">
-                      <form action={toggleFeatured}>
-                        <input type="hidden" name="carId" value={car.id} />
-                        <button
-                          type="submit"
-                          className={`p-2 rounded-lg transition-colors ${
-                            car.isFeatured
-                              ? "text-amber-500 hover:bg-amber-50"
-                              : "text-gray-400 hover:bg-gray-100"
-                          }`}
-                          title={car.isFeatured ? "Remover destaque" : "Destacar"}
-                        >
-                          <svg className="w-5 h-5" fill={car.isFeatured ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.705c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.705a1 1 0 00.951-.69l1.519-4.674z" />
-                          </svg>
-                        </button>
-                      </form>
-                      <Link
-                        href={`/carros/${car.slug}`}
-                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                        title="Ver"
-                        target="_blank"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                      </Link>
-                      <form action={deleteCar}>
-                        <input type="hidden" name="carId" value={car.id} />
-                        <ConfirmSubmitButton
-                          type="submit"
-                          message="Excluir este carro?"
-                          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Excluir"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </ConfirmSubmitButton>
-                      </form>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                          <Eye className="h-5 w-5" />
+                        </Link>
+                        {car.isPromotion ? <Sparkles className="h-5 w-5 text-emerald-600" aria-label="Promoção" /> : null}
+                        <form action={deleteCar}>
+                          <input type="hidden" name="carId" value={car.id} />
+                          <ConfirmSubmitButton
+                            type="submit"
+                            message="Excluir este veículo?"
+                            className="rounded-lg p-2 text-red-500 transition hover:bg-red-50 hover:text-red-700"
+                            title="Excluir"
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </ConfirmSubmitButton>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
 
-        {cars.length === 0 && (
-          <div className="px-6 py-12 text-center text-gray-500">
-            <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-            <p className="text-lg font-medium text-gray-600">Nenhum carro encontrado.</p>
-            <p className="text-sm mt-1">Tente ajustar os filtros ou adicione um novo veículo.</p>
+        {cars.length === 0 ? (
+          <div className="px-6 py-12 text-center text-slate-500">
+            <p className="text-lg font-medium text-slate-700">Nenhum veículo encontrado.</p>
+            <p className="mt-1 text-sm">Tente ajustar os filtros ou cadastre um novo veículo.</p>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
