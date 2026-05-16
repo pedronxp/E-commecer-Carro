@@ -4,6 +4,8 @@ export interface Car {
   slug: string
   description: string
   price: number
+  purchasePrice?: number | null
+  fipePrice?: number | null
   year: number
   mileage: number | null
   fuelType: string | null
@@ -12,11 +14,17 @@ export interface Car {
   doors: number | null
   capacity: number | null
   location: string | null
+  features?: string[]
+  vehicleType?: "CAR" | "MOTORCYCLE" | "ELECTRIC_BIKE"
+  condition?: "NEW" | "USED"
   isSold: boolean
   isFeatured: boolean
+  isPromotion?: boolean
+  promotionNote?: string | null
   brand: Brand
   category: Category
   images: CarImage[]
+  modelUrl?: string | null
 }
 
 export interface Brand {

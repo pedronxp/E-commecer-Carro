@@ -22,9 +22,15 @@ export async function POST(request: Request) {
       ? await request.json()
       : { name: (await request.formData()).get("name") };
     const data = categorySchema.parse(raw);
+    const slug = data.name.toLowerCase().replace(/\s+/g, "-");
+
+    const existingCategory = await prisma.category.findUnique({ where: { slug } });
+    if (existingCategory) {
+      return NextResponse.json({ error: "Categoria já cadastrada." }, { status: 409 });
+    }
 
     const category = await prisma.category.create({
-      data: { name: data.name, slug: data.name.toLowerCase().replace(/\s+/g, "-") },
+      data: { name: data.name, slug },
     });
     return NextResponse.json(category, { status: 201 });
   } catch (error) {

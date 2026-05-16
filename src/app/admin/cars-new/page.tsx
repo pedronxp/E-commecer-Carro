@@ -1,120 +1,142 @@
-"use client";
-export const dynamic = "force-dynamic";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { CarForm } from "@/components/admin/CarForm";
+import { logger } from "@/lib/logger";
+import { prisma } from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
-export default function AdminCarsNewPage() {
-  const router = useRouter();
-  const [brands, setBrands] = useState<{ id: string; name: string }[]>([]);
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+const VALID_VEHICLE_TYPES = ["CAR", "MOTORCYCLE", "ELECTRIC_BIKE"] as const;
+const VALID_CONDITIONS = ["NEW", "USED"] as const;
 
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [price, setPrice] = useState("");
-  const [year, setYear] = useState("");
-  const [mileage, setMileage] = useState("");
-  const [fuelType, setFuelType] = useState("");
-  const [transmission, setTransmission] = useState("");
-  const [color, setColor] = useState("");
-  const [doors, setDoors] = useState("");
-  const [capacity, setCapacity] = useState("");
-  const [location, setLocation] = useState("");
-  const [brandId, setBrandId] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [isFeatured, setIsFeatured] = useState(false);
-  const [error, setError] = useState("");
+export default async function AdminCarsNewPage() {
+  const brands = await prisma.brand.findMany({ orderBy: { name: "asc" } });
+  const categories = await prisma.category.findMany({ orderBy: { name: "asc" } });
 
-  useEffect(() => {
-    fetch("/api/brands").then(r => r.json()).then(setBrands);
-    fetch("/api/categories").then(r => r.json()).then(setCategories);
-  }, []);
+  async function createCar(formData: FormData) {
+    "use server";
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
+    const title = String(formData.get("title") || "").trim();
+    const description = String(formData.get("description") || "").trim();
+    const price = String(formData.get("price") || "");
+    const purchasePrice = String(formData.get("purchasePrice") || "");
+    const fipePrice = String(formData.get("fipePrice") || "");
+    const year = String(formData.get("year") || "");
+    const mileage = String(formData.get("mileage") || "");
+    const vehicleType = String(formData.get("vehicleType") || "");
+    const condition = String(formData.get("condition") || "");
+    const fuelType = String(formData.get("fuelType") || "").trim();
+    const transmission = String(formData.get("transmission") || "").trim();
+    const color = String(formData.get("color") || "").trim();
+    const doors = String(formData.get("doors") || "");
+    const capacity = String(formData.get("capacity") || "");
+    const location = String(formData.get("location") || "").trim();
+    const brandId = String(formData.get("brandId") || "");
+    const categoryId = String(formData.get("categoryId") || "");
+    const imageUrls = String(formData.get("imageUrls") || "");
+    const features = formData
+      .getAll("features")
+      .map((value) => String(value).trim())
+      .filter(Boolean);
+    const isFeatured = formData.get("isFeatured") === "on";
+    const isPromotion = formData.get("isPromotion") === "on";
+    const promotionNote = String(formData.get("promotionNote") || "").trim();
 
-    const images = imageUrl ? imageUrl.split("\n").map(s => s.trim()).filter(Boolean) : [];
-
-    const res = await fetch("/api/cars", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title, description, price, year, mileage: mileage || null,
-        fuelType, transmission, color, doors: doors || null,
-        capacity: capacity || null, location, brandId, categoryId,
-        images, isFeatured,
-      }),
-    });
-
-    if (!res.ok) {
-      const data = await res.json();
-      return setError(data.error || "Erro ao criar");
+    if (!title || !description || !price || !year || !brandId || !categoryId || !vehicleType || !condition) {
+      return "Preencha todos os campos obrigatórios.";
     }
 
-    router.push("/admin");
+    if (!VALID_VEHICLE_TYPES.includes(vehicleType as (typeof VALID_VEHICLE_TYPES)[number])) {
+      return "Tipo de veículo inválido.";
+    }
+
+    if (!VALID_CONDITIONS.includes(condition as (typeof VALID_CONDITIONS)[number])) {
+      return "Status do veículo inválido.";
+    }
+
+    const priceNum = parseFloat(price);
+    if (Number.isNaN(priceNum) || priceNum <= 0) {
+      return "Preço inválido.";
+    }
+
+    const fipePriceNum = fipePrice ? parseFloat(fipePrice) : null;
+    if (fipePriceNum !== null && (Number.isNaN(fipePriceNum) || fipePriceNum <= 0)) {
+      return "Valor FIPE inválido.";
+    }
+
+    const purchasePriceNum = purchasePrice ? parseFloat(purchasePrice) : null;
+    if (purchasePriceNum !== null && (Number.isNaN(purchasePriceNum) || purchasePriceNum <= 0)) {
+      return "Custo de compra inválido.";
+    }
+
+    const yearNum = parseInt(year, 10);
+    if (Number.isNaN(yearNum) || yearNum < 1900 || yearNum > new Date().getFullYear() + 1) {
+      return "Ano inválido.";
+    }
+
+    const slugBase = title
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .substring(0, 80);
+    const slug = `${slugBase}-${Date.now().toString(36)}`;
+
+    const images = imageUrls
+      ? imageUrls
+          .split("\n")
+          .map((value) => value.trim())
+          .filter(Boolean)
+          .map((url, index) => ({ url, isPrimary: index === 0 }))
+      : [];
+
+    try {
+      await prisma.car.create({
+        data: {
+          title,
+          description,
+          price: priceNum,
+          purchasePrice: purchasePriceNum,
+          fipePrice: fipePriceNum,
+          year: yearNum,
+          mileage: mileage ? parseInt(mileage, 10) : null,
+          vehicleType: vehicleType as (typeof VALID_VEHICLE_TYPES)[number],
+          condition: condition as (typeof VALID_CONDITIONS)[number],
+          fuelType,
+          transmission,
+          color,
+          doors: doors ? parseInt(doors, 10) : null,
+          capacity: capacity ? parseInt(capacity, 10) : null,
+          location,
+          features,
+          slug,
+          brandId,
+          categoryId,
+          isFeatured,
+          isPromotion,
+          promotionNote: promotionNote || null,
+          images: images.length > 0 ? { create: images } : undefined,
+        },
+      });
+
+      logger.adminAction("vehicle_created", { title, brandId, categoryId, vehicleType });
+      revalidatePath("/admin/cars");
+      revalidatePath("/admin");
+      redirect("/admin/cars");
+    } catch (error) {
+      logger.error("Failed to create vehicle", { title, error: String(error) });
+      return "Erro ao criar o veículo. Tente novamente.";
+    }
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Novo Carro</h1>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <InputField label="Título" value={title} onChange={setTitle} required />
-          <InputField label="Preço (R$)" type="number" value={price} onChange={setPrice} required />
-          <InputField label="Ano" type="number" value={year} onChange={setYear} required />
-          <InputField label="Quilometragem" type="number" value={mileage} onChange={setMileage} />
-          <InputField label="Combustível" value={fuelType} onChange={setFuelType} placeholder="Ex: Gasolina, Flex, Diesel" />
-          <InputField label="Câmbio" value={transmission} onChange={setTransmission} placeholder="Ex: Manual, Automático" />
-          <InputField label="Cor" value={color} onChange={setColor} />
-          <InputField label="Portas" type="number" value={doors} onChange={setDoors} />
-          <InputField label="Lugares" type="number" value={capacity} onChange={setCapacity} />
-          <InputField label="Localização" value={location} onChange={setLocation} placeholder="Ex: São Paulo, SP" />
-
-          <select value={brandId} onChange={(e) => setBrandId(e.target.value)} required className="px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900">
-            <option value="">Selecione a marca</option>
-            {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </select>
-          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} required className="px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900">
-            <option value="">Selecione a categoria</option>
-            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-zinc-700 mb-1">Descrição</label>
-          <textarea value={description} onChange={(e) => setDescription(e.target.value)} required rows={4} className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900" />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-zinc-700 mb-1">URLs das Imagens (uma por linha)</label>
-          <textarea value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} rows={3} placeholder="https://exemplo.com/imagem1.jpg&#10;https://exemplo.com/imagem2.jpg" className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900" />
-        </div>
-
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} className="rounded" />
-          Carro em destaque
-        </label>
-
-        {error && <p className="text-red-500 text-sm">{error}</p>}
-
-        <button type="submit" className="bg-zinc-900 text-white px-6 py-3 rounded-lg font-medium hover:bg-zinc-800 transition-colors">
-          Criar Carro
-        </button>
-      </form>
-    </div>
-  );
-}
-
-function InputField({ label, value, onChange, type = "text", placeholder, required }: {
-  label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string; required?: boolean;
-}) {
-  return (
     <div>
-      <label className="block text-sm font-medium text-zinc-700 mb-1">{label}</label>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} required={required} className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900" />
+      <div className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="text-sm font-semibold uppercase tracking-[0.14em] text-emerald-700">Cadastro</p>
+        <h1 className="mt-2 text-2xl font-black text-slate-950">Novo veículo</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+          Cadastre carros, motos/motocicletas e bikes elétricas com status, promoção, imagens e comparativo FIPE.
+        </p>
+      </div>
+      <CarForm action={createCar} brands={brands} categories={categories} />
     </div>
   );
 }
-

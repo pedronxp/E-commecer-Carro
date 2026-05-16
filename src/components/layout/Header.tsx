@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Car, Search, Menu, X, Phone } from "lucide-react"
+import { Search, Menu, X, Phone } from "lucide-react"
 import { cn } from "@/lib/utils"
+import BrandLogo from "@/components/layout/BrandLogo"
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -40,13 +41,9 @@ export default function Header() {
         <div className="flex h-16 items-center justify-between gap-4">
           <Link
             href="/"
-            className="flex shrink-0 items-center gap-2 text-xl font-bold tracking-tight text-secondary"
+            className="flex shrink-0 items-center text-secondary transition-transform duration-300 hover:scale-[1.02]"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-              <Car className="h-5 w-5 text-white" />
-            </div>
-            <span className="hidden sm:inline">Lima Automóveis</span>
-            <span className="sm:hidden">Lima</span>
+            <BrandLogo />
           </Link>
 
           <nav className="hidden items-center gap-1 lg:flex">

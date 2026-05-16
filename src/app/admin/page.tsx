@@ -1,5 +1,8 @@
 export const dynamic = "force-dynamic";
+
+import Image from "next/image";
 import Link from "next/link";
+import { BadgePercent, Car, MessageSquareText, Plus, ShieldCheck, Sparkles, Tags, TrendingUp } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
 export default async function AdminPage() {
@@ -11,249 +14,228 @@ export default async function AdminPage() {
     carsInStock,
     carsSold,
     carsFeatured,
+    carsWithFipe,
+    carsWithPurchasePrice,
     totalBrands,
-    totalCategories,
     totalUsers,
     newUsers,
-    totalFavorites,
-    totalCartItems,
+    totalSellLeads,
+    openSellLeads,
+    closedSellLeads,
     recentCars,
+    recentSellLeads,
   ] = await Promise.all([
     prisma.car.count(),
     prisma.car.count({ where: { isSold: false } }),
     prisma.car.count({ where: { isSold: true } }),
     prisma.car.count({ where: { isFeatured: true } }),
+    prisma.car.count({ where: { fipePrice: { not: null } } }),
+    prisma.car.count({ where: { purchasePrice: { not: null } } }),
     prisma.brand.count(),
-    prisma.category.count(),
     prisma.user.count(),
     prisma.user.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
-    prisma.favorite.count(),
-    prisma.cartItem.count(),
+    prisma.sellLead.count(),
+    prisma.sellLead.count({ where: { status: { in: ["NEW", "CONTACTED", "EVALUATING"] } } }),
+    prisma.sellLead.count({ where: { status: "CLOSED" } }),
     prisma.car.findMany({
-      take: 5,
+      take: 4,
       orderBy: { createdAt: "desc" },
-      include: { brand: true },
+      include: { brand: true, images: { where: { isPrimary: true }, take: 1 } },
+    }),
+    prisma.sellLead.findMany({
+      take: 4,
+      orderBy: { createdAt: "desc" },
     }),
   ]);
 
-  const stats = [
+  const fipeCoverage = totalCars > 0 ? Math.round((carsWithFipe / totalCars) * 100) : 0;
+  const marginCoverage = totalCars > 0 ? Math.round((carsWithPurchasePrice / totalCars) * 100) : 0;
+  const leadCloseRate = totalSellLeads > 0 ? Math.round((closedSellLeads / totalSellLeads) * 100) : 0;
+
+  const indicators = [
     {
-      label: "Total de Carros",
-      value: totalCars,
-      subValue: `${carsInStock} em estoque`,
-      href: "/admin/cars",
-      color: "blue",
-      icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10",
+      label: "Estoque ativo",
+      value: carsInStock,
+      detail: `${totalCars} no total · ${carsSold} vendidos`,
+      href: "/admin/cars?status=stock",
+      icon: Car,
+      tone: "bg-emerald-50 text-emerald-700",
     },
     {
-      label: "Carros Vendidos",
-      value: carsSold,
-      subValue: "Total de vendas",
-      href: "/admin/cars",
-      color: "green",
-      icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
+      label: "Vendas recebidas",
+      value: openSellLeads,
+      detail: `${totalSellLeads} entrada(s) · ${leadCloseRate}% finalizadas`,
+      href: "/admin/sell-leads",
+      icon: MessageSquareText,
+      tone: "bg-sky-50 text-sky-700",
     },
     {
-      label: "Destaques",
-      value: carsFeatured,
-      subValue: "Carros em destaque",
-      href: "/admin/cars",
-      color: "amber",
-      icon: "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.705c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.705a1 1 0 00.951-.69l1.519-4.674z",
+      label: "Cobertura FIPE",
+      value: `${fipeCoverage}%`,
+      detail: `${carsWithFipe} veículo(s) com referência`,
+      href: "/admin/promotions",
+      icon: BadgePercent,
+      tone: "bg-indigo-50 text-indigo-700",
     },
     {
-      label: "Marcas",
-      value: totalBrands,
-      subValue: "Marcas cadastradas",
-      href: "/admin/brands",
-      color: "purple",
-      icon: "M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01",
-    },
-    {
-      label: "Categorias",
-      value: totalCategories,
-      subValue: "Categorias ativas",
-      href: "/admin/categories",
-      color: "pink",
-      icon: "M4 6h16M4 10h16M4 14h16M4 18h16",
-    },
-    {
-      label: "Usuários",
-      value: totalUsers,
-      subValue: `${newUsers} novos (30 dias)`,
-      href: "/admin/users",
-      color: "indigo",
-      icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",
-    },
-    {
-      label: "Favoritos",
-      value: totalFavorites,
-      totalCars: totalCars > 0 ? Math.round((totalFavorites / totalCars) * 100) : 0,
-      subValue: "curtidas total",
-      href: "/admin/cars",
-      color: "red",
-      icon: "M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z",
-    },
-    {
-      label: "Carrinho",
-      value: totalCartItems,
-      subValue: "items salvos",
-      href: "/admin/cars",
-      color: "orange",
-      icon: "M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z",
+      label: "Margem informada",
+      value: `${marginCoverage}%`,
+      detail: `${carsWithPurchasePrice} com custo de compra`,
+      href: "/admin/promotions",
+      icon: TrendingUp,
+      tone: "bg-amber-50 text-amber-700",
     },
   ];
 
-  const colorMap: Record<string, { bg: string; text: string; iconBg: string }> = {
-    blue: { bg: "bg-blue-50", text: "text-blue-600", iconBg: "bg-blue-100" },
-    green: { bg: "bg-green-50", text: "text-green-600", iconBg: "bg-green-100" },
-    amber: { bg: "bg-amber-50", text: "text-amber-600", iconBg: "bg-amber-100" },
-    purple: { bg: "bg-purple-50", text: "text-purple-600", iconBg: "bg-purple-100" },
-    pink: { bg: "bg-pink-50", text: "text-pink-600", iconBg: "bg-pink-100" },
-    indigo: { bg: "bg-indigo-50", text: "text-indigo-600", iconBg: "bg-indigo-100" },
-    red: { bg: "bg-red-50", text: "text-red-600", iconBg: "bg-red-100" },
-    orange: { bg: "bg-orange-50", text: "text-orange-600", iconBg: "bg-orange-100" },
-  };
-
   return (
-    <div>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-500 mt-1">Visão geral da sua loja</p>
+    <div className="space-y-8">
+      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase text-emerald-700">Operação da loja</p>
+            <h1 className="mt-2 text-3xl font-black text-slate-950">Painel de controle</h1>
+            <p className="mt-2 max-w-2xl text-sm text-slate-500">
+              Acompanhe estoque, vitrine e contatos de clientes que querem vender veículos.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/admin/cars-new"
+              className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800"
+            >
+              <Plus className="h-4 w-4" />
+              Novo veículo
+            </Link>
+            <Link
+              href="/admin/sell-leads"
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
+            >
+              <MessageSquareText className="h-4 w-4" />
+              Ver leads
+            </Link>
+          </div>
         </div>
-        <Link
-          href="/admin/cars-new"
-          className="inline-flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition-colors"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Novo Carro
-        </Link>
-      </div>
+      </section>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {stats.map((stat) => {
-          const colors = colorMap[stat.color];
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {indicators.map((indicator) => {
+          const Icon = indicator.icon;
           return (
             <Link
-              key={stat.label}
-              href={stat.href}
-              className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-md hover:border-gray-300 transition-all"
+              key={indicator.label}
+              href={indicator.href}
+              className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
             >
-              <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 rounded-lg ${colors.iconBg}`}>
-                  <svg className={`w-6 h-6 ${colors.text}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={stat.icon} />
-                  </svg>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">{indicator.label}</p>
+                  <p className="mt-3 text-3xl font-black text-slate-950 sm:text-4xl">{indicator.value}</p>
+                  <p className="mt-1 text-sm text-slate-500">{indicator.detail}</p>
                 </div>
-                {stat.totalCars !== undefined && (
-                  <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                    {stat.totalCars}%
-                  </span>
-                )}
+                <div className={`rounded-lg p-3 ${indicator.tone}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
               </div>
-              <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
-              <p className="text-sm text-gray-500 mt-1">{stat.label}</p>
-              {stat.subValue && (
-                <p className="text-xs text-gray-400 mt-1">{stat.subValue}</p>
-              )}
             </Link>
           );
         })}
-      </div>
+      </section>
 
-      {/* Recent Cars */}
-      <div className="bg-white rounded-xl border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900">Carros Recentes</h2>
-          <Link href="/admin/cars" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
-            Ver todos →
-          </Link>
-        </div>
-        <div className="divide-y divide-gray-100">
+      <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <h2 className="font-semibold text-slate-950">Últimos veículos cadastrados</h2>
+            <Link href="/admin/cars" className="text-sm font-semibold text-emerald-700 hover:text-emerald-800">
+              Ver estoque
+            </Link>
+          </div>
           {recentCars.length === 0 ? (
-            <div className="px-6 py-12 text-center text-gray-500">
-              <p>Nenhum carro cadastrado ainda.</p>
-              <Link href="/admin/cars-new" className="text-indigo-600 hover:underline mt-2 inline-block">
-                Adicionar primeiro carro
+            <div className="p-8 text-center text-slate-500">
+              <Car className="mx-auto h-12 w-12 text-slate-300" />
+              <p className="mt-3 font-medium text-slate-700">Nenhum veículo cadastrado.</p>
+              <Link href="/admin/cars-new" className="mt-3 inline-flex text-sm font-semibold text-emerald-700">
+                Adicionar primeiro veículo
               </Link>
             </div>
           ) : (
-            recentCars.map((car) => (
-              <div key={car.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                    <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+            <div className="divide-y divide-slate-100">
+              {recentCars.map((car) => (
+                <div key={car.id} className="flex items-center justify-between gap-4 px-5 py-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="relative h-12 w-16 overflow-hidden rounded-lg bg-slate-100">
+                      {car.images[0]?.url ? (
+                        <Image src={car.images[0].url} alt="" fill sizes="64px" className="object-cover" />
+                      ) : null}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-slate-950">{car.title}</p>
+                      <p className="text-sm text-slate-500">{car.brand.name} · {car.year}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{car.title}</p>
-                    <p className="text-sm text-gray-500">{car.brand.name} • {car.year}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-gray-900">
-                    R$ {car.price.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                  </p>
-                  <span className={`text-xs px-2 py-1 rounded ${car.isSold ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${car.isSold ? "bg-slate-100 text-slate-700" : "bg-emerald-50 text-emerald-700"}`}>
                     {car.isSold ? "Vendido" : "Estoque"}
                   </span>
                 </div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </div>
-      </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-        <Link href="/admin/cars" className="bg-white rounded-xl p-6 border border-gray-200 hover:border-indigo-300 hover:shadow-md transition-all">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-indigo-100 rounded-lg">
-              <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
+        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <h2 className="font-semibold text-slate-950">Venda de veículos</h2>
+            <Link href="/admin/sell-leads" className="text-sm font-semibold text-emerald-700 hover:text-emerald-800">
+              Triar
+            </Link>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {recentSellLeads.length === 0 ? (
+              <div className="p-6 text-sm text-slate-500">
+                Nenhuma solicitação recebida pela página Vender.
+              </div>
+            ) : (
+              recentSellLeads.map((lead) => (
+                <div key={lead.id} className="px-5 py-4">
+                  <p className="font-semibold text-slate-950">{lead.vehicleModel}</p>
+                  <p className="mt-1 text-sm text-slate-500">{lead.name} · {lead.createdAt.toLocaleDateString("pt-BR")}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="rounded-lg bg-slate-100 p-2 text-slate-700">
+              <ShieldCheck className="h-5 w-5" />
             </div>
             <div>
-              <p className="font-medium text-gray-900">Gerenciar Carros</p>
-              <p className="text-sm text-gray-500">Ver, editar ou remover veículos</p>
+              <p className="font-semibold text-slate-950">Gestão interna e permissões</p>
+              <p className="mt-1 text-sm text-slate-500">
+                {totalUsers} usuário(s) administrativo(s), {newUsers} novo(s) nos últimos 30 dias.
+              </p>
             </div>
           </div>
-        </Link>
+          <Link href="/admin/users" className="text-sm font-semibold text-emerald-700 hover:text-emerald-800">
+            Administrar acessos
+          </Link>
+        </div>
+      </section>
 
-        <Link href="/admin/users" className="bg-white rounded-xl p-6 border border-gray-200 hover:border-indigo-300 hover:shadow-md transition-all">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-            </div>
-            <div>
-              <p className="font-medium text-gray-900">Gerenciar Usuários</p>
-              <p className="text-sm text-gray-500">Admin roles e permissões</p>
-            </div>
-          </div>
+      <section className="grid gap-4 sm:grid-cols-2">
+        <Link href="/admin/brands" className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
+          <Tags className="h-5 w-5 text-emerald-700" />
+          <p className="mt-3 font-semibold text-slate-950">Marcas cadastradas</p>
+          <p className="mt-1 text-sm text-slate-500">{totalBrands} fabricantes organizando o catálogo.</p>
         </Link>
-
-        <Link href="/" className="bg-white rounded-xl p-6 border border-gray-200 hover:border-indigo-300 hover:shadow-md transition-all">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-green-100 rounded-lg">
-              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-            </div>
-            <div>
-              <p className="font-medium text-gray-900">Ver Loja</p>
-              <p className="text-sm text-gray-500">Visualizar página pública</p>
-            </div>
-          </div>
+        <Link href="/admin/cars?status=featured" className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
+          <Sparkles className="h-5 w-5 text-amber-700" />
+          <p className="mt-3 font-semibold text-slate-950">Destaques ativos</p>
+          <p className="mt-1 text-sm text-slate-500">{carsFeatured} oferta(s) priorizada(s) na operação comercial.</p>
         </Link>
-      </div>
+      </section>
     </div>
   );
 }

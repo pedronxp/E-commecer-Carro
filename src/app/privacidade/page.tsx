@@ -1,9 +1,9 @@
-import type { Metadata } from "next"
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Política de Privacidade - Lima Automóveis",
-  description: "Política de privacidade e tratamento de dados da Lima Automóveis.",
-}
+  description: "Política de privacidade, LGPD e cookies da Lima Automóveis.",
+};
 
 export default function PrivacidadePage() {
   return (
@@ -11,47 +11,42 @@ export default function PrivacidadePage() {
       <h1 className="text-3xl font-bold text-foreground sm:text-4xl">Política de Privacidade</h1>
       <p className="mt-2 text-sm text-muted">Última atualização: Maio de 2026</p>
 
-      <div className="mt-8 space-y-6 text-sm text-muted leading-relaxed">
+      <div className="mt-8 space-y-6 text-sm leading-relaxed text-muted">
         <section>
-          <h2 className="mb-2 text-lg font-semibold text-foreground">1. Coleta de Dados</h2>
+          <h2 className="mb-2 text-lg font-semibold text-foreground">1. Coleta de dados</h2>
           <p>
-            Coletamos informações pessoais como nome, e-mail, telefone e CPF quando você preenche formulários
-            em nosso site, realiza simulações de financiamento ou entra em contato conosco.
+            Coletamos dados como nome, e-mail, telefone e informações do veículo quando você preenche formulários de contato, financiamento ou venda de veículo.
           </p>
         </section>
 
         <section>
-          <h2 className="mb-2 text-lg font-semibold text-foreground">2. Uso das Informações</h2>
+          <h2 className="mb-2 text-lg font-semibold text-foreground">2. Uso das informações</h2>
           <p>
-            Utilizamos seus dados para processar solicitações, oferecer cotações personalizadas,
-            enviar comunicações sobre veículos e serviços, e melhorar sua experiência em nosso site.
+            Usamos os dados para responder solicitações, avaliar veículos, simular atendimento comercial, manter segurança da sessão e melhorar a experiência no site.
           </p>
         </section>
 
         <section>
           <h2 className="mb-2 text-lg font-semibold text-foreground">3. Compartilhamento</h2>
           <p>
-            Não compartilhamos seus dados pessoais com terceiros sem seu consentimento, exceto quando
-            necessário para processar transações (instituições financeiras) ou por obrigação legal.
+            Não compartilhamos dados pessoais sem base legal ou consentimento, exceto quando necessário para atendimento, obrigação legal ou segurança operacional.
           </p>
         </section>
 
         <section>
-          <h2 className="mb-2 text-lg font-semibold text-foreground">4. Seus Direitos (LGPD)</h2>
+          <h2 className="mb-2 text-lg font-semibold text-foreground">4. Seus direitos LGPD</h2>
           <p>
-            Você tem direito a acessar, corrigir, excluir seus dados pessoais ou revogar o consentimento
-            a qualquer momento. Para exercer seus direitos, entre em contato pelo e-mail privacidade@autoprime.com.br.
+            Você pode solicitar acesso, correção, exclusão, anonimização ou revogação de consentimento. Para exercer seus direitos, entre em contato pelo e-mail privacidade@limaautomoveis.com.br.
           </p>
         </section>
 
         <section>
           <h2 className="mb-2 text-lg font-semibold text-foreground">5. Cookies</h2>
           <p>
-            Utilizamos cookies para melhorar a navegação e analisar o uso do site. Você pode configurar
-            seu navegador para recusar cookies, mas isso pode afetar algumas funcionalidades.
+            Cookies necessários mantêm sessão, segurança e funcionamento básico. Cookies opcionais podem ser usados para métricas e melhoria de navegação, quando aceitos no aviso exibido no site.
           </p>
         </section>
       </div>
     </div>
-  )
+  );
 }

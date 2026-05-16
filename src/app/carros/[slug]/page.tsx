@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, MapPin, Fuel, Gauge, Calendar, Car } from "lucide-react"
+import { ArrowLeft, MapPin, Fuel, Gauge, Calendar } from "lucide-react"
 import { Button } from "@/components/ui/Button"
+import CarMediaViewer from "@/components/carros/CarMediaViewer"
 import { getCarBySlug } from "@/lib/data"
 import { formatPrice } from "@/lib/utils"
 
@@ -17,6 +18,11 @@ export default async function CarDetailPage({ params }: PageProps) {
     notFound()
   }
 
+  const discount =
+    car.fipePrice && car.fipePrice > car.price
+      ? Math.round(((car.fipePrice - car.price) / car.fipePrice) * 100)
+      : 0
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
       <Link
@@ -27,9 +33,7 @@ export default async function CarDetailPage({ params }: PageProps) {
       </Link>
 
       <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
-        <div className="aspect-[21/9] bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-          <Car className="h-20 w-20 text-gray-300" />
-        </div>
+        <CarMediaViewer title={car.title} images={car.images} />
 
         <div className="p-6 sm:p-8">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
@@ -41,7 +45,14 @@ export default async function CarDetailPage({ params }: PageProps) {
                 {car.title}
               </h1>
             </div>
-            <p className="text-3xl font-bold text-primary">{formatPrice(car.price)}</p>
+            <div className="text-left sm:text-right">
+              <p className="text-3xl font-bold text-primary">{formatPrice(car.price)}</p>
+              {discount > 0 ? (
+                <p className="mt-1 text-sm font-semibold text-emerald-700">
+                  {discount}% abaixo da FIPE ({formatPrice(car.fipePrice ?? 0)})
+                </p>
+              ) : null}
+            </div>
           </div>
 
           <div className="mt-6 grid grid-cols-2 gap-4 rounded-xl bg-surface p-4 sm:grid-cols-4 sm:gap-6 sm:p-6">

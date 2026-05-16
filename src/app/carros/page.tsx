@@ -1,10 +1,11 @@
 import { Suspense } from "react"
-import type { CarFilters } from "@/types"
-import { filterCars } from "@/lib/data"
-import CarCard from "@/components/carros/CarCard"
-import SearchBar from "@/components/carros/SearchBar"
-import FiltersSidebar from "@/components/carros/FiltersSidebar"
+import Image from "next/image"
 import { Car, SlidersHorizontal } from "lucide-react"
+import CarCard from "@/components/carros/CarCard"
+import FiltersSidebar from "@/components/carros/FiltersSidebar"
+import SearchBar from "@/components/carros/SearchBar"
+import { filterCars } from "@/lib/data"
+import type { CarFilters } from "@/types"
 
 interface PageProps {
   searchParams: Promise<{ [key: string]: string | undefined }>
@@ -36,13 +37,25 @@ async function ListingContent({ searchParams }: PageProps) {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
-          Catálogo de Veículos
-        </h1>
-        <p className="mt-1 text-sm text-muted">
-          {results.length} veículo{results.length !== 1 ? "s" : ""} encontrado{results.length !== 1 ? "s" : ""}
-        </p>
+      <div className="relative mb-8 overflow-hidden rounded-2xl bg-slate-950 px-6 py-10 text-white shadow-sm sm:px-8">
+        <Image
+          src="/images/banners/catalog-safe.png"
+          alt="Estoque fictício de veículos sem marcas, placas ou modelos reais reconhecíveis"
+          fill
+          priority
+          sizes="(min-width: 1280px) 1216px, 100vw"
+          className="object-cover"
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,_rgba(2,6,23,0.88)_0%,_rgba(2,6,23,0.62)_42%,_rgba(2,6,23,0.18)_100%)]" />
+        <div className="relative max-w-2xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-300">
+            Estoque selecionado
+          </p>
+          <h1 className="mt-3 text-2xl font-bold sm:text-4xl">Catálogo de veículos</h1>
+          <p className="mt-3 text-sm text-white/78">
+            {results.length} veículo{results.length !== 1 ? "s" : ""} encontrado{results.length !== 1 ? "s" : ""}. As imagens de banner usam carros fictícios para evitar marcas e modelos protegidos.
+          </p>
+        </div>
       </div>
 
       <div className="mb-6">

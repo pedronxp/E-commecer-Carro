@@ -62,6 +62,7 @@ export async function POST(request: Request) {
         doors: data.doors ?? null,
         capacity: data.capacity ?? null,
         location: data.location ?? null,
+        features: data.features ?? [],
         isFeatured: data.isFeatured ?? false,
         brandId: data.brandId,
         categoryId: data.categoryId,

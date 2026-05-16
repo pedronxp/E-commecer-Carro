@@ -12,6 +12,33 @@ enum Role {
   ADMIN
 }
 
+enum SellLeadStatus {
+  NEW
+  CONTACTED
+  EVALUATING
+  CLOSED
+  ARCHIVED
+}
+
+enum SellLeadChannel {
+  UNDEFINED
+  WHATSAPP
+  PHONE
+  IN_PERSON
+  EMAIL
+}
+
+enum VehicleType {
+  CAR
+  MOTORCYCLE
+  ELECTRIC_BIKE
+}
+
+enum VehicleCondition {
+  NEW
+  USED
+}
+
 model User {
   id        String   @id @default(cuid())
   name      String
@@ -47,6 +74,8 @@ model Car {
   slug         String   @unique
   description  String
   price        Float
+  purchasePrice Float?
+  fipePrice    Float?
   year         Int
   mileage      Int?
   fuelType     String?
@@ -55,8 +84,13 @@ model Car {
   doors        Int?
   capacity     Int?
   location     String?
+  features     String[] @default([])
+  vehicleType  VehicleType      @default(CAR)
+  condition    VehicleCondition @default(USED)
   isSold       Boolean  @default(false)
   isFeatured   Boolean  @default(false)
+  isPromotion  Boolean  @default(false)
+  promotionNote String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -89,6 +123,30 @@ model Favorite {
   car    Car    @relation(fields: [carId], references: [id])
 
   @@unique([userId, carId])
+}
+
+model SellLead {
+  id           String         @id @default(cuid())
+  name         String
+  email        String
+  phone        String?
+  vehicleModel String
+  year         Int?
+  mileage      Int?
+  notes        String?
+  status       SellLeadStatus @default(NEW)
+  contactChannel SellLeadChannel @default(UNDEFINED)
+  nextActionAt DateTime?
+  adminNotes   String?
+  closedAt     DateTime?
+  consent      Boolean        @default(false)
+  consentAt    DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([status, createdAt])
+  @@index([contactChannel, nextActionAt])
+  @@index([email])
 }
 
 model CartItem {

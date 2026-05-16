@@ -22,9 +22,15 @@ export async function POST(request: Request) {
       ? await request.json()
       : { name: (await request.formData()).get("name") };
     const data = brandSchema.parse(raw);
+    const slug = data.name.toLowerCase().replace(/\s+/g, "-");
+
+    const existingBrand = await prisma.brand.findUnique({ where: { slug } });
+    if (existingBrand) {
+      return NextResponse.json({ error: "Marca já cadastrada." }, { status: 409 });
+    }
 
     const brand = await prisma.brand.create({
-      data: { name: data.name, slug: data.name.toLowerCase().replace(/\s+/g, "-") },
+      data: { name: data.name, slug },
     });
     return NextResponse.json(brand, { status: 201 });
   } catch (error) {
