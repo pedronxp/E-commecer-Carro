@@ -41,7 +41,7 @@ Depois de instalar, valide:
 opencode --version
 ```
 
-No momento em que este setup foi criado, `opencode` nao estava disponivel no PATH do Windows.
+No ambiente atual (Windows), `opencode` foi validado com versao `1.15.3`. Caso o comando nao esteja disponivel em outro ambiente, use as instrucoes de instalacao acima como fallback.
 
 ## Como abrir no projeto
 
@@ -108,6 +108,38 @@ Entrada minima:
 - `git diff`.
 
 Template: `docs/reviews/_template.md`.
+
+## Fluxo com menos copia e cola
+
+Para tarefas reais, prefira os artefatos em `docs/agent-swarm/`.
+
+Estrutura:
+
+```text
+docs/agent-swarm/
+  tasks/
+  executor-results/
+  reviews/
+  corrections/
+```
+
+Primeira Task Card deste setup:
+
+```text
+docs/agent-swarm/tasks/001-agent-swarm-setup.md
+```
+
+O Executor pode receber apenas uma instrucao curta:
+
+```text
+Execute a Task Card em docs/agent-swarm/tasks/001-agent-swarm-setup.md. Nao implemente nada fora do escopo.
+```
+
+Ou via CLI:
+
+```powershell
+opencode run --agent executor --file docs\agent-swarm\tasks\001-agent-swarm-setup.md "Execute a Task Card anexada. Nao implemente nada fora do escopo. Ao final, retorne o resumo obrigatorio do Executor."
+```
 
 ## Branches
 
