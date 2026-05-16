@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { ArrowRight, Car, ChevronLeft, ChevronRight, CreditCard, Shield, Sparkles } from "lucide-react"
+import { ArrowRight, Car, ChevronLeft, ChevronRight, CreditCard, Shield } from "lucide-react"
 
 const slides = [
   {
-    title: "Seu próximo carro começa por uma escolha segura",
+    title: "Seu próximo carro começa com uma escolha segura",
     description:
       "Modelos selecionados, atendimento direto e caminhos claros para comprar, financiar ou vender seu veículo.",
     primary: { href: "/carros", label: "Ver veículos" },
@@ -57,63 +57,63 @@ export default function HeroCarousel() {
 
   return (
     <section
-      className="relative isolate overflow-hidden bg-secondary text-white"
+      className="relative isolate overflow-hidden bg-gradient-to-br from-secondary via-[#1a2744] to-secondary"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
       <Image
         src="/images/banners/home-hero-safe.png"
-        alt="Carro premium em showroom moderno da Lima Automóveis"
+        alt="Showroom Lima Automóveis com veículos selecionados"
         fill
         priority
         sizes="100vw"
-        className="object-cover object-[64%_center]"
+        className="object-cover object-[64%_center] opacity-40"
       />
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,_rgba(15,23,42,0.92)_0%,_rgba(15,23,42,0.74)_45%,_rgba(15,23,42,0.94)_100%)] lg:bg-[linear-gradient(90deg,_rgba(15,23,42,0.96)_0%,_rgba(15,23,42,0.88)_42%,_rgba(15,23,42,0.42)_74%,_rgba(15,23,42,0.20)_100%)]" />
-      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-secondary/60 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-r from-secondary/95 via-secondary/80 to-secondary/40" />
 
-      <div className="relative mx-auto grid min-h-[540px] max-w-7xl content-center gap-8 px-4 py-12 sm:min-h-[600px] sm:px-6 lg:min-h-[640px] lg:grid-cols-[1.05fr_0.95fr] lg:px-8 lg:py-20">
-        <div key={current} className="max-w-3xl" style={{ animation: "fade-in 0.5s ease-out" }}>
-          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-emerald-100 backdrop-blur-sm sm:text-sm">
-            <Sparkles className="h-4 w-4" />
+      <div className="relative mx-auto grid min-h-[520px] max-w-7xl content-center gap-10 px-4 py-16 sm:min-h-[580px] sm:px-6 lg:min-h-[620px] lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-20">
+        <div key={current} className="max-w-2xl" style={{ animation: "fade-in 0.5s ease-out" }}>
+          <span className="mb-4 inline-block rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-semibold tracking-wide text-emerald-300 sm:text-sm">
             Lima Automóveis
-          </div>
-          <h1 className="max-w-[21rem] text-[2rem] font-bold leading-[1.08] sm:max-w-3xl sm:text-5xl lg:text-6xl">
+          </span>
+          <h1 className="mt-3 text-[1.75rem] font-bold leading-[1.1] tracking-tight text-white sm:text-4xl lg:text-5xl">
             {slide.title}
           </h1>
-          <p className="mt-5 max-w-[21rem] text-sm leading-relaxed text-slate-200 sm:max-w-2xl sm:text-lg">
+          <p className="mt-4 max-w-lg text-sm leading-relaxed text-slate-300 sm:text-base lg:text-lg">
             {slide.description}
           </p>
 
-          <div className="mt-7 grid gap-3 sm:flex sm:flex-wrap">
+          <div className="mt-7 flex flex-wrap gap-3">
             <Link
               href={slide.primary.href}
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-primary-dark"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-base font-semibold text-white shadow-lg shadow-primary/25 transition-all hover:bg-primary-dark hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98]"
             >
               {slide.primary.label}
               <ArrowRight className="h-5 w-5" />
             </Link>
             <Link
               href={slide.secondary.href}
-              className="inline-flex min-h-12 items-center justify-center rounded-lg border border-white/25 px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-white/10"
+              className="inline-flex min-h-12 items-center justify-center rounded-lg border border-white/20 bg-white/8 px-6 py-3 text-base font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/15 active:scale-[0.98]"
             >
               {slide.secondary.label}
             </Link>
           </div>
         </div>
 
-        <div className="hidden self-end lg:block lg:self-center">
-          <div className="rounded-lg border border-white/15 bg-white/10 p-4 shadow-2xl backdrop-blur-md sm:p-5">
-            <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="hidden self-center lg:block">
+          <div className="overflow-hidden rounded-xl border border-white/10 bg-white/8 shadow-2xl shadow-black/20 backdrop-blur-md">
+            <div className="flex items-center justify-between gap-4 border-b border-white/5 px-5 py-4">
               <div>
-                <p className="text-xs font-semibold uppercase text-emerald-100">Atendimento rápido</p>
-                <p className="mt-1 text-sm text-slate-200">Escolha o caminho e continue a navegação.</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-300">
+                  Acesso rápido
+                </p>
+                <p className="mt-0.5 text-xs text-slate-400">Escolha o caminho desejado</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-1.5">
                 <button
                   type="button"
                   onClick={prev}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/15 text-white transition-colors hover:bg-white/10"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
                   aria-label="Slide anterior"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -121,7 +121,7 @@ export default function HeroCarousel() {
                 <button
                   type="button"
                   onClick={next}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/15 text-white transition-colors hover:bg-white/10"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
                   aria-label="Próximo slide"
                 >
                   <ChevronRight className="h-4 w-4" />
@@ -129,21 +129,21 @@ export default function HeroCarousel() {
               </div>
             </div>
 
-            <div className="grid gap-3">
+            <div className="grid gap-1 p-2">
               {shortcuts.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="group flex items-center gap-3 rounded-lg border border-white/10 bg-white/8 p-3 transition-colors hover:bg-white/14"
+                  className="group flex items-center gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-white/8"
                 >
-                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-emerald-100">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-emerald-300">
                     <item.icon className="h-5 w-5" />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-semibold text-white">{item.label}</span>
-                    <span className="block text-xs text-slate-300">{item.description}</span>
+                    <span className="block text-xs text-slate-400">{item.description}</span>
                   </span>
-                  <ArrowRight className="h-4 w-4 text-slate-300 transition-transform group-hover:translate-x-1" />
+                  <ArrowRight className="h-4 w-4 shrink-0 text-slate-500 transition-transform group-hover:translate-x-0.5" />
                 </Link>
               ))}
             </div>
@@ -157,7 +157,7 @@ export default function HeroCarousel() {
               type="button"
               onClick={() => setCurrent(idx)}
               className={`h-2 rounded-full transition-all duration-300 ${
-                idx === current ? "w-8 bg-white" : "w-2 bg-white/40 hover:bg-white/60"
+                idx === current ? "w-8 bg-white" : "w-2 bg-white/30 hover:bg-white/50"
               }`}
               aria-label={`Ir para slide ${idx + 1}`}
             />

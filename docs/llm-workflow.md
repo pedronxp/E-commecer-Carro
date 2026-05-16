@@ -48,6 +48,12 @@ Reusable templates:
 - Task Card: `docs/task-cards/_template.md`
 - Review: `docs/reviews/_template.md`
 
+Artifact-based workflow:
+- Tasks: `docs/agent-swarm/tasks/`
+- Executor results: `docs/agent-swarm/executor-results/`
+- Reviews: `docs/agent-swarm/reviews/`
+- Corrections: `docs/agent-swarm/corrections/`
+
 ## Standard Flow
 
 1. Planner creates the task prompt.
