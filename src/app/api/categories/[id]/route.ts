@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin, handleApiError } from "@/lib/api";
+import { requireInternalAccess, handleApiError } from "@/lib/api";
 import { categorySchema } from "@/lib/schemas";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -15,7 +15,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAdmin();
+  const auth = await requireInternalAccess();
   if ("error" in auth) return auth.error;
   try {
     const { id } = await params;
@@ -32,7 +32,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAdmin();
+  const auth = await requireInternalAccess();
   if ("error" in auth) return auth.error;
   try {
     const { id } = await params;

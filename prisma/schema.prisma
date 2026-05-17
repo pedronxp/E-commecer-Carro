@@ -24,6 +24,9 @@ enum SellLeadIntent {
   DIRECT_SALE
   CONSIGNMENT
   EVALUATE_BOTH
+  PURCHASE
+  FINANCING_INTEREST
+  CONTACT_REQUEST
 }
 
 enum SellLeadChannel {
@@ -43,6 +46,15 @@ enum VehicleType {
 enum VehicleCondition {
   NEW
   USED
+}
+
+enum CommercialEventType {
+  VEHICLE_VIEW
+  WHATSAPP_CLICK
+  FINANCING_INTEREST
+  SELL_LEAD_SUBMITTED
+  CONTACT_INTENT
+  PURCHASE_INTENT
 }
 
 model User {
@@ -108,6 +120,8 @@ model Car {
   images    CarImage[]
   favorites Favorite[]
   cartItems CartItem[]
+  sellLeads SellLead[]
+  commercialEvents CommercialEvent[]
 }
 
 model CarImage {
@@ -148,12 +162,22 @@ model SellLead {
   closedAt     DateTime?
   consent      Boolean        @default(false)
   consentAt    DateTime?
+  sourcePath   String?
+  sourceType   String?
+  vehicleSlug  String?
+  carId        String?
+  car          Car?           @relation(fields: [carId], references: [id])
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
+
+  commercialEvents CommercialEvent[]
 
   @@index([status, createdAt])
   @@index([contactChannel, nextActionAt])
   @@index([email])
+  @@index([sourcePath, createdAt])
+  @@index([vehicleSlug, createdAt])
+  @@index([carId, createdAt])
 }
 
 model CartItem {
@@ -165,4 +189,27 @@ model CartItem {
   addedAt DateTime @default(now())
 
   @@unique([userId, carId])
+}
+
+model CommercialEvent {
+  id           String              @id @default(cuid())
+  type         CommercialEventType
+  channel      SellLeadChannel     @default(UNDEFINED)
+  sourcePath   String
+  ctaLabel     String?
+  vehicleSlug  String?
+  vehicleTitle String?
+  metadata     Json?
+  carId        String?
+  car          Car?                @relation(fields: [carId], references: [id])
+  leadId       String?
+  lead         SellLead?           @relation(fields: [leadId], references: [id])
+  createdAt    DateTime            @default(now())
+
+  @@index([type, createdAt])
+  @@index([channel, createdAt])
+  @@index([sourcePath, createdAt])
+  @@index([vehicleSlug, createdAt])
+  @@index([carId, createdAt])
+  @@index([leadId, createdAt])
 }

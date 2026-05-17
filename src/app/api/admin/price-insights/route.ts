@@ -1,22 +1,27 @@
 import { NextResponse } from "next/server";
+import { requireInternalAccess } from "@/lib/api";
 import { findFipexEstimate } from "@/lib/fipe-provider";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const user = await getCurrentUser();
-
-  if (!user || user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
-  }
+  const auth = await requireInternalAccess();
+  if ("error" in auth) return auth.error;
 
   const { searchParams } = new URL(request.url);
   const title = normalize(searchParams.get("title") || "");
   const year = Number(searchParams.get("year") || "");
   const vehicleType = searchParams.get("vehicleType") || "CAR";
+  const safeVehicleType = isVehicleType(vehicleType) ? vehicleType : "CAR";
   const tokens = title.split(" ").filter((token) => token.length >= 3).slice(0, 5);
+  const parameters = {
+    title,
+    year: Number.isFinite(year) ? year : null,
+    vehicleType,
+    normalizedVehicleType: vehicleType === "ELECTRIC_BIKE" ? "ELECTRIC_BIKE" : safeVehicleType,
+    tokens,
+  };
 
   if (vehicleType === "ELECTRIC_BIKE") {
     return NextResponse.json({
@@ -24,8 +29,11 @@ export async function GET(request: Request) {
       averageSalePrice: null,
       sampleCount: 0,
       confidence: "manual",
-      source: "Bike elétrica não possui cobertura FIPE confiável neste fluxo. Informe o preço de referência manualmente.",
+      source: "Bike eletrica nao possui cobertura FIPE confiavel neste fluxo. Informe o preco de referencia manualmente.",
+      fallbackReason: "Tipo de veiculo sem cobertura FIPE automatica neste fluxo.",
       externalProviderConfigured: false,
+      providerStatus: "manual",
+      parameters,
       matches: [],
     });
   }
@@ -35,12 +43,16 @@ export async function GET(request: Request) {
       fipeEstimate: null,
       averageSalePrice: null,
       sampleCount: 0,
-      source: "Digite o nome do veículo para buscar referência no estoque local e na FipeX.",
+      confidence: "manual",
+      source: "Digite o nome do veiculo para buscar referencia no estoque local e na FipeX.",
+      fallbackReason: "Titulo insuficiente para consulta automatica.",
+      externalProviderConfigured: false,
+      providerStatus: "manual",
+      parameters,
       matches: [],
     });
   }
 
-  const safeVehicleType = isVehicleType(vehicleType) ? vehicleType : "CAR";
   const [candidates, externalEstimate] = await Promise.all([
     prisma.car.findMany({
       where: {
@@ -81,18 +93,26 @@ export async function GET(request: Request) {
   const localFipeEstimate = average(fipeValues);
   const fipeEstimate = externalEstimate?.price ?? localFipeEstimate;
   const averageSalePrice = average(saleValues);
+  const fallbackReason = externalEstimate
+    ? null
+    : localFipeEstimate
+      ? "Fornecedor externo sem match confiavel; usando referencia interna por estoque similar."
+      : "Sem match externo ou interno suficiente; informe a referencia manualmente.";
 
   return NextResponse.json({
     fipeEstimate,
     averageSalePrice,
     sampleCount: scored.length,
-    confidence: externalEstimate ? "alta" : scored.length >= 3 ? "alta" : scored.length >= 1 ? "média" : "baixa",
+    confidence: externalEstimate ? externalEstimate.confidence : scored.length >= 3 ? "alta" : scored.length >= 1 ? "media" : "baixa",
     source: externalEstimate
-      ? `Referência FipeX ${externalEstimate.referenceMonth}: ${externalEstimate.title}. Confirme na FIPE oficial quando fechar a precificação.`
+      ? `Referencia FipeX ${externalEstimate.referenceMonth}: ${externalEstimate.title}. Confirme na FIPE oficial quando fechar a precificacao.`
       : localFipeEstimate
-        ? "Referência calculada por veículos similares já cadastrados no estoque."
-        : "Sem FIPE automática suficiente. Use a consulta oficial ou preencha manualmente.",
+        ? "Referencia calculada por veiculos similares ja cadastrados no estoque."
+        : "Sem FIPE automatica suficiente. Use a consulta oficial ou preencha manualmente.",
+    fallbackReason,
     externalProviderConfigured: Boolean(externalEstimate),
+    providerStatus: externalEstimate ? "provider" : localFipeEstimate ? "local-fallback" : "manual",
+    parameters,
     externalEstimate,
     matches: scored.map(({ vehicle }) => ({
       title: vehicle.title,

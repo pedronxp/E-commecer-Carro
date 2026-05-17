@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { carSchema } from "@/lib/schemas";
-import { handleApiError, requireAdmin } from "@/lib/api";
+import { handleApiError, requireInternalAccess } from "@/lib/api";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -18,7 +18,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAdmin();
+  const auth = await requireInternalAccess();
   if ("error" in auth) return auth.error;
 
   try {
@@ -54,7 +54,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAdmin();
+  const auth = await requireInternalAccess();
   if ("error" in auth) return auth.error;
   try {
     const { id } = await params;

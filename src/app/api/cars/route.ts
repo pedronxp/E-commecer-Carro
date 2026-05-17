@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { carSchema } from "@/lib/schemas";
-import { handleApiError, requireAdmin } from "@/lib/api";
+import { handleApiError, requireInternalAccess } from "@/lib/api";
 
 export async function GET(request: NextRequest) {
   try {
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireAdmin();
+  const auth = await requireInternalAccess();
   if ("error" in auth) return auth.error;
 
   try {

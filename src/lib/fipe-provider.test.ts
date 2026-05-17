@@ -38,6 +38,9 @@ describe("selectBestFipexMatch", () => {
       referenceMonth: "maio/2026",
       referenceCode: 333,
       ingestedAt: undefined,
+      confidence: "alta",
+      matchScore: 12,
+      fallback: false,
     });
   });
 
@@ -58,6 +61,26 @@ describe("selectBestFipexMatch", () => {
     );
 
     expect(result).toBeNull();
+  });
+
+  it("returns low confidence for weak but usable provider matches", () => {
+    const result = selectBestFipexMatch(
+      [
+        {
+          make_name: "Honda",
+          model_name: "Fit LX",
+          model_year: 2019,
+          type_name: "carro",
+          latest_market_price_cents: 6800000,
+          ref_month: 5,
+          ref_year: 2026,
+        },
+      ],
+      { title: "Honda City", year: 2015, vehicleType: "CAR" },
+    );
+
+    expect(result?.confidence).toBe("baixa");
+    expect(result?.fallback).toBe(false);
   });
 });
 

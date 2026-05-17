@@ -15,6 +15,14 @@ type PriceInsight = {
   sampleCount: number;
   confidence?: string;
   source: string;
+  fallbackReason?: string | null;
+  providerStatus?: "provider" | "local-fallback" | "manual";
+  externalEstimate?: {
+    provider: string;
+    title: string;
+    referenceMonth: string;
+    confidence: string;
+  } | null;
   externalProviderConfigured?: boolean;
   matches: Array<{
     title: string;
@@ -451,7 +459,14 @@ export function CarForm({
         </button>
       </div>
 
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-950">Dados públicos e parâmetros internos</h2>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            Título, ano, marca, categoria, localização e fotos alimentam a vitrine. Custo, FIPE e status apoiam precificação e operação interna.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <VehicleTypeField value={vehicleType} onChange={handleVehicleTypeChange} />
         {vehicleType === "ELECTRIC_BIKE" ? <BikeManualPanel /> : null}
         <SelectField
@@ -570,6 +585,7 @@ export function CarForm({
           placeholder="Selecione a categoria"
         />
         {vehicleType !== "ELECTRIC_BIKE" ? <VehicleFeaturesField vehicleType={vehicleType} /> : null}
+        </div>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
@@ -592,6 +608,14 @@ export function CarForm({
                 <p className="mt-1 text-xs text-slate-500">
                   Média de venda interna: {formatCurrency(insight.averageSalePrice)} em {insight.sampleCount} referência(s).
                 </p>
+              ) : null}
+              {insight?.externalEstimate ? (
+                <p className="mt-1 text-xs text-slate-500">
+                  Fonte: {insight.externalEstimate.provider} - {insight.externalEstimate.referenceMonth} - {insight.externalEstimate.confidence}
+                </p>
+              ) : null}
+              {insight?.fallbackReason ? (
+                <p className="mt-1 text-xs font-medium text-amber-700">{insight.fallbackReason}</p>
               ) : null}
             </div>
           </div>
@@ -683,7 +707,7 @@ export function CarForm({
         <div className="mb-3 flex flex-col gap-1">
           <label className="text-sm font-semibold text-slate-900">Imagens do veículo</label>
           <p className="text-sm text-slate-500">
-            A primeira imagem vira capa na vitrine. Use fotos reais e bem iluminadas na ordem em que devem aparecer.
+            A primeira imagem vira capa na vitrine. Use fotos reais do veículo, bem iluminadas e na ordem em que devem aparecer; não use banners genéricos ou imagens geradas para representar esta unidade.
           </p>
         </div>
         <label className="flex min-h-24 cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-emerald-300 bg-emerald-50 px-4 py-5 text-sm font-semibold text-emerald-800 transition hover:-translate-y-0.5 hover:bg-emerald-100 hover:shadow-md hover:shadow-emerald-900/10">

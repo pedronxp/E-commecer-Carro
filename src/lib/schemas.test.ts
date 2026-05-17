@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseSellLeadInput } from "./schemas";
+import { parseCommercialEventInput, parseSellLeadInput } from "./schemas";
 
 describe("parseSellLeadInput", () => {
   const valid = {
@@ -35,6 +35,26 @@ describe("parseSellLeadInput", () => {
     expect(result.success).toBe(true);
     if (!result.success) return;
     expect(result.data.intent).toBe("EVALUATE_BOTH");
+  });
+
+  it("accepts purchase, financing, and contact intents with attribution fields", () => {
+    for (const intent of ["PURCHASE", "FINANCING_INTEREST", "CONTACT_REQUEST"]) {
+      const result = parseSellLeadInput({
+        ...valid,
+        intent,
+        contactChannel: "WHATSAPP",
+        sourcePath: "/carros/honda-civic",
+        sourceType: "vehicle_detail",
+        vehicleSlug: "honda-civic",
+        carId: "car_123",
+      });
+
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+      expect(result.data.intent).toBe(intent);
+      expect(result.data.contactChannel).toBe("WHATSAPP");
+      expect(result.data.sourcePath).toBe("/carros/honda-civic");
+    }
   });
 
   it("rejects invalid intent", () => {
@@ -160,6 +180,69 @@ describe("parseSellLeadInput", () => {
 
   it("rejects non-numeric mileage text", () => {
     const result = parseSellLeadInput({ ...valid, mileage: "abc" });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("parseCommercialEventInput", () => {
+  const valid = {
+    type: "WHATSAPP_CLICK",
+    channel: "WHATSAPP",
+    sourcePath: "/carros/honda-civic",
+    ctaLabel: "Comprar pelo WhatsApp",
+    vehicleSlug: "honda-civic",
+    vehicleTitle: "Honda Civic EXL 2024",
+    metadata: {
+      price: 165900,
+      featured: true,
+      campaign: "vehicle-detail",
+      empty: null,
+    },
+  };
+
+  it("accepts a valid commercial event with safe metadata", () => {
+    const result = parseCommercialEventInput(valid);
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.type).toBe("WHATSAPP_CLICK");
+    expect(result.data.channel).toBe("WHATSAPP");
+    expect(result.data.metadata?.price).toBe(165900);
+  });
+
+  it("defaults missing channel to UNDEFINED", () => {
+    const result = parseCommercialEventInput({
+      type: "VEHICLE_VIEW",
+      sourcePath: "/carros/honda-civic",
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.channel).toBe("UNDEFINED");
+  });
+
+  it("rejects invalid event types", () => {
+    const result = parseCommercialEventInput({ ...valid, type: "ADD_TO_CART" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects unsafe nested metadata", () => {
+    const result = parseCommercialEventInput({
+      ...valid,
+      metadata: { nested: { phone: "11999999999" } },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects date objects in metadata instead of serializing them implicitly", () => {
+    const result = parseCommercialEventInput({
+      ...valid,
+      metadata: { clickedAt: new Date("2026-05-17T12:00:00Z") },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects too many metadata keys", () => {
+    const metadata = Object.fromEntries(Array.from({ length: 13 }, (_, index) => [`key${index}`, index]));
+    const result = parseCommercialEventInput({ ...valid, metadata });
     expect(result.success).toBe(false);
   });
 });

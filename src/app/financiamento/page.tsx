@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { WhatsAppTrackedLink } from "@/components/commercial/CommercialTracker"
 import ImagePageHero from "@/components/marketing/ImagePageHero"
 import { Button } from "@/components/ui/Button"
 
@@ -16,6 +17,8 @@ const benefits = [
 ]
 
 export default function FinanciamentoPage() {
+  const whatsappMessage = "Tenho interesse em financiamento com a Lima Automoveis. Quero entender entrada, prazo e documentos.";
+
   return (
     <>
       <ImagePageHero
@@ -28,11 +31,19 @@ export default function FinanciamentoPage() {
         <Link href="/carros">
           <Button size="lg">Ver carros disponíveis</Button>
         </Link>
-        <Link href="/contato">
-          <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10">
-            Falar no WhatsApp
-          </Button>
-        </Link>
+        <WhatsAppTrackedLink
+          message={whatsappMessage}
+          event={{
+            type: "FINANCING_INTEREST",
+            channel: "WHATSAPP",
+            sourcePath: "/financiamento",
+            ctaLabel: "Falar no WhatsApp",
+            metadata: { placement: "hero" },
+          }}
+          className="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-white/30 px-7 py-3.5 text-lg font-medium text-white transition-all duration-200 hover:bg-white/10 active:scale-[0.97]"
+        >
+          Falar no WhatsApp
+        </WhatsAppTrackedLink>
       </ImagePageHero>
 
       <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
@@ -81,7 +92,19 @@ export default function FinanciamentoPage() {
                 </select>
               </div>
               <div className="flex items-end">
-                <Button className="w-full">Preparar atendimento</Button>
+                <WhatsAppTrackedLink
+                  message={whatsappMessage}
+                  event={{
+                    type: "FINANCING_INTEREST",
+                    channel: "WHATSAPP",
+                    sourcePath: "/financiamento",
+                    ctaLabel: "Preparar atendimento",
+                    metadata: { placement: "simulation" },
+                  }}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-base font-medium text-white transition-all duration-200 hover:bg-primary-dark active:scale-[0.97]"
+                >
+                  Preparar atendimento
+                </WhatsAppTrackedLink>
               </div>
             </form>
           </div>
@@ -94,9 +117,19 @@ export default function FinanciamentoPage() {
               <li>Informe se tem carro para troca.</li>
               <li>Pergunte quais documentos separar.</li>
             </ul>
-            <Link href="/contato" className="mt-6 inline-flex text-sm font-semibold text-primary hover:text-primary-dark">
+            <WhatsAppTrackedLink
+              message={whatsappMessage}
+              event={{
+                type: "FINANCING_INTEREST",
+                channel: "WHATSAPP",
+                sourcePath: "/financiamento",
+                ctaLabel: "Chamar atendimento",
+                metadata: { placement: "aside" },
+              }}
+              className="mt-6 inline-flex text-sm font-semibold text-primary hover:text-primary-dark"
+            >
               Chamar atendimento
-            </Link>
+            </WhatsAppTrackedLink>
           </aside>
         </div>
       </div>

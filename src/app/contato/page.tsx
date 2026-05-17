@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { WhatsAppTrackedLink } from "@/components/commercial/CommercialTracker"
 
 export const metadata: Metadata = {
   title: "Contato - Lima Automóveis",
@@ -32,7 +33,21 @@ export default function ContatoPage() {
           <div key={item.title} className="rounded-lg border border-border bg-white p-5 shadow-sm">
             <h3 className="text-sm font-semibold text-foreground">{item.title}</h3>
             <p className="mt-2 text-sm leading-relaxed text-muted">{item.text}</p>
-            {item.href ? (
+            {item.title === "WhatsApp" ? (
+              <WhatsAppTrackedLink
+                message="Quero falar com a Lima Automoveis sobre compra, venda ou financiamento."
+                event={{
+                  type: "CONTACT_INTENT",
+                  channel: "WHATSAPP",
+                  sourcePath: "/contato",
+                  ctaLabel: item.action,
+                  metadata: { placement: "contact-card" },
+                }}
+                className="mt-4 inline-flex text-sm font-semibold text-primary hover:text-primary-dark"
+              >
+                {item.action}
+              </WhatsAppTrackedLink>
+            ) : item.href ? (
               <a
                 href={item.href}
                 target={item.href.startsWith("http") ? "_blank" : undefined}
@@ -90,12 +105,19 @@ export default function ContatoPage() {
               />
             </div>
             <div className="sm:col-span-2">
-              <button
-                type="submit"
-                className="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
+              <WhatsAppTrackedLink
+                message="Quero enviar uma mensagem para a Lima Automoveis."
+                event={{
+                  type: "CONTACT_INTENT",
+                  channel: "WHATSAPP",
+                  sourcePath: "/contato",
+                  ctaLabel: "Enviar mensagem",
+                  metadata: { placement: "contact-form" },
+                }}
+                className="inline-flex rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
               >
                 Enviar mensagem
-              </button>
+              </WhatsAppTrackedLink>
             </div>
           </form>
         </div>

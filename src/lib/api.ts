@@ -21,6 +21,15 @@ export async function requireAdmin() {
   return { user };
 }
 
+export async function requireInternalAccess() {
+  const user = await getAuthUser();
+  if (!user) return { error: NextResponse.json({ error: "Nao autenticado" }, { status: 401 }) };
+  if (user.role !== "ADMIN" && user.role !== "USER") {
+    return { error: NextResponse.json({ error: "Acesso negado" }, { status: 403 }) };
+  }
+  return { user };
+}
+
 export function handleApiError(error: unknown, context: string) {
   if (error instanceof ZodError) {
     return NextResponse.json(

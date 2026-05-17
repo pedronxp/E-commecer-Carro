@@ -52,7 +52,7 @@ export default async function VenderPage({
 
     const { name, email, phone, vehicleModel, year, mileage, intent, notes } = parsed.data
 
-    await prisma.sellLead.create({
+    const lead = await prisma.sellLead.create({
       data: {
         name,
         email: email.toLowerCase().trim(),
@@ -61,9 +61,24 @@ export default async function VenderPage({
         year: year ?? null,
         mileage: mileage ?? null,
         intent,
+        contactChannel: phone ? "WHATSAPP" : "EMAIL",
+        sourcePath: "/vender",
+        sourceType: "sell_vehicle_form",
         notes: notes || null,
         consent: true,
         consentAt: new Date(),
+      },
+    })
+
+    await prisma.commercialEvent.create({
+      data: {
+        type: "SELL_LEAD_SUBMITTED",
+        channel: phone ? "WHATSAPP" : "EMAIL",
+        sourcePath: "/vender",
+        ctaLabel: "Enviar para avaliacao",
+        vehicleTitle: vehicleModel,
+        leadId: lead.id,
+        metadata: { intent, year: year ?? null, mileage: mileage ?? null },
       },
     })
 

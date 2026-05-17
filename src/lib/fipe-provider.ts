@@ -33,6 +33,9 @@ export type FipeEstimate = {
   referenceMonth: string;
   referenceCode?: number;
   ingestedAt?: string;
+  confidence: "alta" | "media" | "baixa";
+  matchScore: number;
+  fallback: false;
 };
 
 type FetchLike = (input: string | URL, init?: RequestInit) => Promise<Response>;
@@ -195,10 +198,13 @@ export function selectBestFipexMatch(
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score);
 
-  const best = ranked[0]?.item;
+  const bestRanked = ranked[0];
+  const best = bestRanked?.item;
   if (!best?.model_name || !best.make_name || !best.model_year || !best.latest_market_price_cents) {
     return null;
   }
+
+  const matchScore = bestRanked.score;
 
   return {
     provider: "FipeX",
@@ -208,6 +214,9 @@ export function selectBestFipexMatch(
     referenceMonth: formatReferenceMonth(best.ref_month, best.ref_year),
     referenceCode: best.ref_fipe_id,
     ingestedAt: best.ref_ingested_at,
+    confidence: getMatchConfidence(matchScore),
+    matchScore,
+    fallback: false,
   };
 }
 
@@ -220,6 +229,12 @@ function scoreFipexItem(item: FipexSearchItem, queryTokens: string[], targetYear
       : 0;
 
   return tokenScore + yearScore;
+}
+
+function getMatchConfidence(score: number): FipeEstimate["confidence"] {
+  if (score >= 10) return "alta";
+  if (score >= 5) return "media";
+  return "baixa";
 }
 
 function formatReferenceMonth(month?: number, year?: number): string {
