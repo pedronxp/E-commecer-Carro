@@ -23,7 +23,7 @@ export default function SearchFilters({ brands, categories }: SearchFiltersProps
     if (categoryId) params.set("categoryId", categoryId);
     if (minPrice) params.set("minPrice", minPrice);
     if (maxPrice) params.set("maxPrice", maxPrice);
-    router.push(`/cars?${params.toString()}`);
+    router.push(`/carros?${params.toString()}`);
   }
 
   return (

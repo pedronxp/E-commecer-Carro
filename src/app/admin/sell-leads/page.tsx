@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { ConfirmSubmitButton } from "@/components/admin/AdminFormControls";
+import { sellLeadIntentLabels } from "@/lib/schemas";
 
 const statusLabels: Record<SellLeadStatus, string> = {
   NEW: "Novo lead",
@@ -163,6 +164,9 @@ export default async function AdminSellLeadsPage() {
                     </span>
                     <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                       {channelLabels[lead.contactChannel]}
+                    </span>
+                    <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                      {sellLeadIntentLabels[lead.intent]}
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-slate-500">

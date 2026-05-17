@@ -7,18 +7,18 @@ export default function CarGrid() {
   const featured = getFeaturedCars().slice(0, 4)
 
   return (
-    <section className="bg-surface px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+    <section className="bg-white px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mb-8 grid gap-5 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
-            <span className="inline-flex items-center gap-2 text-sm font-semibold text-primary">
-              <ShieldCheck className="h-4 w-4" />
+            <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+              <ShieldCheck className="h-4 w-4 text-primary" />
               Seleção da loja
             </span>
-            <h2 className="mt-2 text-2xl font-bold text-foreground sm:text-3xl">
+            <h2 className="mt-3 text-2xl font-bold text-foreground sm:text-3xl">
               Veículos em destaque
             </h2>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
               Uma vitrine dos modelos selecionados para ajudar na sua decisão. Veja o catálogo completo quando quiser comparar mais opções.
             </p>
           </div>
@@ -36,7 +36,7 @@ export default function CarGrid() {
             (label) => (
               <span
                 key={label}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-3 py-1 text-xs font-medium text-muted shadow-sm"
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-muted"
               >
                 <Gauge className="h-3.5 w-3.5 text-primary" />
                 {label}

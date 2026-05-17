@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CookiePreferencesButton } from "@/components/layout/CookiePreferencesButton";
 
 export const metadata: Metadata = {
   title: "Política de Privacidade - Lima Automóveis",
@@ -44,6 +45,9 @@ export default function PrivacidadePage() {
           <h2 className="mb-2 text-lg font-semibold text-foreground">5. Cookies</h2>
           <p>
             Cookies necessários mantêm sessão, segurança e funcionamento básico. Cookies opcionais podem ser usados para métricas e melhoria de navegação, quando aceitos no aviso exibido no site.
+          </p>
+          <p className="mt-3">
+            <CookiePreferencesButton />
           </p>
         </section>
       </div>

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { ArrowRight, Car, ChevronLeft, ChevronRight, CreditCard, Shield } from "lucide-react"
+import { ArrowRight, Car, ChevronLeft, ChevronRight, CreditCard, Gauge, Shield } from "lucide-react"
 
 const slides = [
   {
@@ -35,6 +35,12 @@ const shortcuts = [
   { href: "/vender", icon: Shield, label: "Vender", description: "Solicitar avaliação" },
 ]
 
+const operationSignals = [
+  { label: "Estoque", value: "curado" },
+  { label: "FIPE", value: "comparada" },
+  { label: "Contato", value: "direto" },
+]
+
 export default function HeroCarousel() {
   const [current, setCurrent] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
@@ -57,7 +63,7 @@ export default function HeroCarousel() {
 
   return (
     <section
-      className="relative isolate overflow-hidden bg-gradient-to-br from-secondary via-[#1a2744] to-secondary"
+      className="relative isolate overflow-hidden bg-secondary"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
@@ -67,26 +73,37 @@ export default function HeroCarousel() {
         fill
         priority
         sizes="100vw"
-        className="object-cover object-[64%_center] opacity-40"
+        className="object-cover object-[64%_center] opacity-35"
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-secondary/95 via-secondary/80 to-secondary/40" />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(15,23,42,0.96),rgba(15,23,42,0.86)_48%,rgba(15,23,42,0.46))]" />
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.055)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.055)_1px,transparent_1px)] bg-[size:44px_44px] opacity-70" />
 
-      <div className="relative mx-auto grid min-h-[520px] max-w-7xl content-center gap-10 px-4 py-16 sm:min-h-[580px] sm:px-6 lg:min-h-[620px] lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-20">
+      <div className="relative mx-auto grid min-h-[540px] max-w-7xl content-center gap-10 px-4 py-16 sm:min-h-[600px] sm:px-6 lg:min-h-[640px] lg:grid-cols-[1.04fr_0.96fr] lg:px-8 lg:py-20">
         <div key={current} className="max-w-2xl" style={{ animation: "fade-in 0.5s ease-out" }}>
-          <span className="mb-4 inline-block rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-semibold tracking-wide text-emerald-300 sm:text-sm">
+          <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary-light sm:text-sm">
+            <Gauge className="h-3.5 w-3.5" />
             Lima Automóveis
           </span>
-          <h1 className="mt-3 text-[1.75rem] font-bold leading-[1.1] tracking-tight text-white sm:text-4xl lg:text-5xl">
+          <h1 className="mt-3 text-[1.9rem] font-black leading-[1.04] tracking-tight text-white sm:text-4xl lg:text-6xl">
             {slide.title}
           </h1>
-          <p className="mt-4 max-w-lg text-sm leading-relaxed text-slate-300 sm:text-base lg:text-lg">
+          <p className="mt-5 max-w-xl text-sm leading-relaxed text-slate-300 sm:text-base lg:text-lg">
             {slide.description}
           </p>
+
+          <div className="mt-7 grid max-w-xl grid-cols-3 overflow-hidden rounded-xl border border-white/10 bg-white/8 backdrop-blur">
+            {operationSignals.map((signal) => (
+              <div key={signal.label} className="border-r border-white/10 px-3 py-3 last:border-r-0 sm:px-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">{signal.label}</p>
+                <p className="mt-1 text-sm font-bold text-white sm:text-base">{signal.value}</p>
+              </div>
+            ))}
+          </div>
 
           <div className="mt-7 flex flex-wrap gap-3">
             <Link
               href={slide.primary.href}
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-base font-semibold text-white shadow-lg shadow-primary/25 transition-all hover:bg-primary-dark hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98]"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-base font-semibold text-white shadow-lg shadow-primary/20 transition-all hover:bg-primary-dark hover:shadow-xl hover:shadow-primary/25 active:scale-[0.98]"
             >
               {slide.primary.label}
               <ArrowRight className="h-5 w-5" />
@@ -101,10 +118,10 @@ export default function HeroCarousel() {
         </div>
 
         <div className="hidden self-center lg:block">
-          <div className="overflow-hidden rounded-xl border border-white/10 bg-white/8 shadow-2xl shadow-black/20 backdrop-blur-md">
+          <div className="overflow-hidden rounded-xl border border-white/10 bg-slate-950/45 shadow-2xl shadow-black/30 backdrop-blur-md">
             <div className="flex items-center justify-between gap-4 border-b border-white/5 px-5 py-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-300">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary-light">
                   Acesso rápido
                 </p>
                 <p className="mt-0.5 text-xs text-slate-400">Escolha o caminho desejado</p>
@@ -136,7 +153,7 @@ export default function HeroCarousel() {
                   href={item.href}
                   className="group flex items-center gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-white/8"
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-emerald-300">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-primary/15 text-primary-light">
                     <item.icon className="h-5 w-5" />
                   </span>
                   <span className="min-w-0 flex-1">

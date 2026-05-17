@@ -1,19 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --background: #FFFFFF;
-  --foreground: #0F172A;
-  --primary: #059669;
-  --primary-dark: #047857;
-  --primary-light: #D1FAE5;
-  --secondary: #0F172A;
-  --accent: #0EA5E9;
-  --surface: #F8FAFC;
-  --surface-dark: #1E293B;
-  --muted: #64748B;
-  --muted-light: #94A3B8;
-  --border: #E2E8F0;
-  --border-light: #F1F5F9;
+  --background: oklch(98% 0.005 250);
+  --foreground: oklch(22% 0.02 240);
+  --primary: oklch(58% 0.16 145);
+  --primary-dark: oklch(46% 0.14 145);
+  --primary-light: oklch(92% 0.06 145);
+  --secondary: oklch(22% 0.02 240);
+  --accent: oklch(64% 0.15 220);
+  --surface: oklch(100% 0 0);
+  --surface-dark: oklch(18% 0.02 240);
+  --muted: oklch(50% 0.018 240);
+  --muted-light: oklch(68% 0.014 240);
+  --border: oklch(90% 0.008 240);
+  --border-light: oklch(95% 0.006 240);
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
@@ -118,6 +118,7 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-variant-numeric: tabular-nums;
 }
 
 .brand-logo-mark {

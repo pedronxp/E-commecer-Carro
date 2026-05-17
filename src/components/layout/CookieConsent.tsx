@@ -2,19 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-
-const STORAGE_KEY = "lima-cookie-consent";
-const COOKIE_NAME = "lima_cookie_consent";
-const CONSENT_VERSION = 1;
-const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
-
-type CookiePreferences = {
-  version: number;
-  necessary: true;
-  analytics: boolean;
-  marketing: boolean;
-  acceptedAt: string;
-};
+import {
+  CONSENT_VERSION,
+  readConsent,
+  writeConsent,
+} from "@/lib/cookie-consent";
 
 export function CookieConsent() {
   const [visible, setVisible] = useState(false);
@@ -51,17 +43,7 @@ export function CookieConsent() {
   }, []);
 
   function save(preferences: { analytics: boolean; marketing: boolean }) {
-    const payload: CookiePreferences = {
-      version: CONSENT_VERSION,
-      necessary: true,
-      analytics: preferences.analytics,
-      marketing: preferences.marketing,
-      acceptedAt: new Date().toISOString(),
-    };
-
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-    document.cookie = `${COOKIE_NAME}=${encodeURIComponent(JSON.stringify(payload))}; Path=/; Max-Age=${ONE_YEAR_SECONDS}; SameSite=Lax`;
-    window.dispatchEvent(new CustomEvent("lima:cookie-consent-updated", { detail: payload }));
+    writeConsent(preferences);
     setVisible(false);
     setCustomizing(false);
   }
@@ -185,16 +167,4 @@ function CookieOption({
       </span>
     </label>
   );
-}
-
-function readConsent(): CookiePreferences | null {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as CookiePreferences;
-    if (parsed.necessary !== true) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
 }

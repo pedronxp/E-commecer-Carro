@@ -20,6 +20,12 @@ enum SellLeadStatus {
   ARCHIVED
 }
 
+enum SellLeadIntent {
+  DIRECT_SALE
+  CONSIGNMENT
+  EVALUATE_BOTH
+}
+
 enum SellLeadChannel {
   UNDEFINED
   WHATSAPP
@@ -134,6 +140,7 @@ model SellLead {
   year         Int?
   mileage      Int?
   notes        String?
+  intent       SellLeadIntent @default(DIRECT_SALE)
   status       SellLeadStatus @default(NEW)
   contactChannel SellLeadChannel @default(UNDEFINED)
   nextActionAt DateTime?

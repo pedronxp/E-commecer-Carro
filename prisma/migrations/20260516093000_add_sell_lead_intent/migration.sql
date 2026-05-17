@@ -1,0 +1,5 @@
+-- CreateEnum
+CREATE TYPE "SellLeadIntent" AS ENUM ('DIRECT_SALE', 'CONSIGNMENT', 'EVALUATE_BOTH');
+
+-- AlterTable
+ALTER TABLE "SellLead" ADD COLUMN "intent" "SellLeadIntent" NOT NULL DEFAULT 'DIRECT_SALE';
