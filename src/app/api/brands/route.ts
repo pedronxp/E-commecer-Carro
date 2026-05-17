@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin, handleApiError } from "@/lib/api";
+import { requireInternalAccess, handleApiError } from "@/lib/api";
 import { brandSchema } from "@/lib/schemas";
 
 export async function GET() {
@@ -13,7 +13,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireAdmin();
+  const auth = await requireInternalAccess();
   if ("error" in auth) return auth.error;
 
   try {

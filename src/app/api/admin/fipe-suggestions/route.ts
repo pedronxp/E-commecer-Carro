@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
+import { requireInternalAccess } from "@/lib/api";
 import { findFipexModelSuggestions } from "@/lib/fipe-provider";
-import { getCurrentUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const user = await getCurrentUser();
-
-  if (!user || user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
-  }
+  const auth = await requireInternalAccess();
+  if ("error" in auth) return auth.error;
 
   const { searchParams } = new URL(request.url);
   const query = String(searchParams.get("q") || "").trim();

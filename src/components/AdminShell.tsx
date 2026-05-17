@@ -10,7 +10,7 @@ import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 type AdminShellUser = {
   name: string;
   email: string;
-  role: "ADMIN";
+  role: "ADMIN" | "USER";
 };
 
 export default function AdminShell({
@@ -28,6 +28,7 @@ export default function AdminShell({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const pageTitle = getAdminRouteTitle(pathname);
+  const navItems = ADMIN_NAV_ITEMS.filter((item) => !item.adminOnly || user.role === "ADMIN");
 
   async function handleLogout() {
     try {
@@ -86,7 +87,7 @@ export default function AdminShell({
         </div>
 
         <nav className="space-y-1.5 p-3">
-          {ADMIN_NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const isActive =
               pathname === item.href || isSectionActive(pathname, item.href);
             const Icon = item.icon;

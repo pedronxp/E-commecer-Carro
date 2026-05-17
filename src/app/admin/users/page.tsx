@@ -2,12 +2,19 @@ import { AutoSubmitSelect, ConfirmSubmitButton } from "@/components/admin/AdminF
 import { hashPassword } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/session";
 import type { LucideIcon } from "lucide-react";
-import { Heart, KeyRound, Plus, ShieldCheck, ShoppingCart, Trash2, UserRound, Users } from "lucide-react";
+import { KeyRound, Plus, ShieldCheck, Trash2, UserRound, Users } from "lucide-react";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 export default async function AdminUsersPage() {
-  logger.dbOperation("user_list_access", { count: "loading" });
+  const currentUser = await getCurrentUser();
+  if (!currentUser || currentUser.role !== "ADMIN") {
+    redirect("/admin");
+  }
+
+  logger.dbOperation("operator_list_access", { count: "loading" });
 
   const users = await prisma.user.findMany({
     orderBy: { createdAt: "desc" },
@@ -17,17 +24,17 @@ export default async function AdminUsersPage() {
       email: true,
       role: true,
       createdAt: true,
-      _count: { select: { favorites: true, cartItems: true } },
     },
   });
 
   const adminCount = users.filter((user) => user.role === "ADMIN").length;
-  const activityCount = users.reduce((total, user) => total + user._count.favorites + user._count.cartItems, 0);
+  const operatorCount = users.length - adminCount;
 
-  logger.adminAction("user_list_loaded", { count: users.length });
+  logger.adminAction("operator_list_loaded", { count: users.length });
 
   async function createUser(formData: FormData) {
     "use server";
+    if (!(await ensureAdminAccess("operator_create"))) return;
 
     const name = String(formData.get("name") || "").trim();
     const email = String(formData.get("email") || "").trim().toLowerCase();
@@ -35,7 +42,7 @@ export default async function AdminUsersPage() {
     const role = String(formData.get("role") || "USER");
 
     if (!name || !email || password.length < 8 || !["USER", "ADMIN"].includes(role)) {
-      logger.warn("Blocked invalid admin user creation", { email, role });
+      logger.warn("Blocked invalid operator creation", { email, role });
       return;
     }
 
@@ -48,22 +55,23 @@ export default async function AdminUsersPage() {
           role: role as "USER" | "ADMIN",
         },
       });
-      logger.adminAction("user_created_by_admin", { email, role });
+      logger.adminAction("operator_created_by_admin", { email, role });
       revalidatePath("/admin/users");
     } catch (error) {
-      logger.error("Failed to create user from admin", { email, error: String(error) });
+      logger.error("Failed to create operator from admin", { email, error: String(error) });
       throw error;
     }
   }
 
   async function updatePassword(formData: FormData) {
     "use server";
+    if (!(await ensureAdminAccess("operator_password_update"))) return;
 
     const userId = String(formData.get("userId") || "");
     const password = String(formData.get("password") || "");
 
     if (!userId || password.length < 8) {
-      logger.warn("Blocked invalid password update", { userId });
+      logger.warn("Blocked invalid operator password update", { userId });
       return;
     }
 
@@ -71,12 +79,13 @@ export default async function AdminUsersPage() {
       where: { id: userId },
       data: { password: await hashPassword(password) },
     });
-    logger.adminAction("user_password_updated", { userId });
+    logger.adminAction("operator_password_updated", { userId });
     revalidatePath("/admin/users");
   }
 
   async function updateRole(formData: FormData) {
     "use server";
+    if (!(await ensureAdminAccess("operator_role_update"))) return;
     const userId = formData.get("userId") as string;
     const newRole = formData.get("role") as "USER" | "ADMIN";
 
@@ -96,16 +105,17 @@ export default async function AdminUsersPage() {
         where: { id: userId },
         data: { role: newRole },
       });
-      logger.adminAction("user_role_updated", { userId, oldRole: oldUser.role, newRole });
+      logger.adminAction("operator_role_updated", { userId, oldRole: oldUser.role, newRole });
       revalidatePath("/admin/users");
     } catch (error) {
-      logger.error("Failed to update user role", { userId, error: String(error) });
+      logger.error("Failed to update operator role", { userId, error: String(error) });
       throw error;
     }
   }
 
   async function deleteUser(formData: FormData) {
     "use server";
+    if (!(await ensureAdminAccess("operator_delete"))) return;
     const userId = formData.get("userId") as string;
 
     try {
@@ -123,10 +133,10 @@ export default async function AdminUsersPage() {
       await prisma.favorite.deleteMany({ where: { userId } });
       await prisma.cartItem.deleteMany({ where: { userId } });
       await prisma.user.delete({ where: { id: userId } });
-      logger.adminAction("user_deleted", { userId, userName: user.name, userEmail: user.email });
+      logger.adminAction("operator_deleted", { userId, userName: user.name, userEmail: user.email });
       revalidatePath("/admin/users");
     } catch (error) {
-      logger.error("Failed to delete user", { userId, error: String(error) });
+      logger.error("Failed to delete operator", { userId, error: String(error) });
       throw error;
     }
   }
@@ -135,18 +145,18 @@ export default async function AdminUsersPage() {
     <div className="space-y-6">
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-emerald-700">Segurança</p>
-          <h1 className="text-2xl font-black text-slate-950">Acessos administrativos</h1>
+          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-emerald-700">Seguranca interna</p>
+          <h1 className="text-2xl font-black text-slate-950">Operadores do painel</h1>
           <p className="max-w-2xl text-sm leading-6 text-slate-500">
-            Controle quem pode operar o painel. A rota fica fora do menu principal, mas continua disponível para usuários ADMIN.
+            Controle quem pode operar estoque, leads, FIPE e metricas. Estes acessos sao internos e nao criam conta publica para clientes.
           </p>
         </div>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-3">
-        <SummaryCard icon={Users} label="Contas cadastradas" value={users.length} />
+        <SummaryCard icon={Users} label="Acessos internos" value={users.length} />
         <SummaryCard icon={ShieldCheck} label="Administradores" value={adminCount} />
-        <SummaryCard icon={Heart} label="Atividades públicas" value={activityCount} />
+        <SummaryCard icon={UserRound} label="Operadores" value={operatorCount} />
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -157,7 +167,7 @@ export default async function AdminUsersPage() {
           <div>
             <h2 className="font-semibold text-slate-950">Cadastrar operador</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Crie contas internas sem liberar cadastro público. Use ADMIN apenas para quem pode operar o painel.
+              Crie contas internas sem liberar cadastro publico. Use ADMIN apenas para quem pode alterar acessos e operar areas sensiveis.
             </p>
           </div>
         </div>
@@ -179,7 +189,7 @@ export default async function AdminUsersPage() {
       <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <div>
-            <h2 className="font-semibold text-slate-950">Usuários</h2>
+            <h2 className="font-semibold text-slate-950">Operadores</h2>
             <p className="text-sm text-slate-500">{users.length} registro(s) encontrados</p>
           </div>
         </div>
@@ -187,8 +197,8 @@ export default async function AdminUsersPage() {
         {users.length === 0 ? (
           <div className="px-6 py-12 text-center text-slate-500">
             <UserRound className="mx-auto mb-4 h-14 w-14 text-slate-300" />
-            <p className="text-lg font-medium text-slate-700">Nenhum usuário cadastrado.</p>
-            <p className="mt-1 text-sm">As contas aparecerão aqui quando forem criadas pelo fluxo administrativo.</p>
+            <p className="text-lg font-medium text-slate-700">Nenhum operador cadastrado.</p>
+            <p className="mt-1 text-sm">Os acessos internos aparecerao aqui quando forem criados pelo fluxo administrativo.</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
@@ -215,20 +225,13 @@ export default async function AdminUsersPage() {
                         : "border-slate-200 bg-slate-50 text-slate-700"
                     }`}
                   >
-                    <option value="USER">Usuário</option>
+                    <option value="USER">Operador</option>
                     <option value="ADMIN">Admin</option>
                   </AutoSubmitSelect>
                 </form>
 
-                <div className="flex items-center gap-4 text-sm text-slate-500">
-                  <span className="inline-flex items-center gap-1">
-                    <Heart className="h-4 w-4" />
-                    {user._count.favorites}
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <ShoppingCart className="h-4 w-4" />
-                    {user._count.cartItems}
-                  </span>
+                <div className="text-sm text-slate-500">
+                  {user.role === "ADMIN" ? "Acesso total ao painel" : "Operacao interna"}
                 </div>
 
                 <p className="text-sm text-slate-500">
@@ -239,7 +242,7 @@ export default async function AdminUsersPage() {
                   <input type="hidden" name="userId" value={user.id} />
                   <ConfirmSubmitButton
                     type="submit"
-                    message={`Remover usuário "${user.name ?? "sem nome"}"?`}
+                    message={`Remover operador "${user.name ?? "sem nome"}"?`}
                     className="inline-flex items-center gap-2 rounded-lg border border-red-100 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 hover:text-red-700"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -263,7 +266,7 @@ export default async function AdminUsersPage() {
                     />
                     <ConfirmSubmitButton
                       type="submit"
-                      message={`Trocar a senha de "${user.name ?? "usuário"}"?`}
+                      message={`Trocar a senha de "${user.name ?? "operador"}"?`}
                       className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
                     >
                       <KeyRound className="h-4 w-4" />
@@ -278,6 +281,18 @@ export default async function AdminUsersPage() {
       </section>
     </div>
   );
+}
+
+async function ensureAdminAccess(action: string): Promise<boolean> {
+  const currentUser = await getCurrentUser();
+  if (currentUser?.role === "ADMIN") return true;
+
+  logger.warn("Blocked non-admin access management action", {
+    action,
+    actorId: currentUser?.id ?? "anonymous",
+    actorRole: currentUser?.role ?? "none",
+  });
+  return false;
 }
 
 function SummaryCard({

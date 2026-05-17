@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Calendar, Fuel, Gauge, MapPin, MessageCircle, type LucideIcon } from "lucide-react"
-import { Button } from "@/components/ui/Button"
 import CarMediaViewer from "@/components/carros/CarMediaViewer"
+import { CommercialViewTracker, WhatsAppTrackedLink } from "@/components/commercial/CommercialTracker"
 import { getCarBySlug } from "@/lib/data"
 import { formatPrice } from "@/lib/utils"
+import { buildVehicleInterestMessage } from "@/lib/whatsapp"
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -22,9 +23,25 @@ export default async function CarDetailPage({ params }: PageProps) {
     car.fipePrice && car.fipePrice > car.price
       ? Math.round(((car.fipePrice - car.price) / car.fipePrice) * 100)
       : 0
+  const sourcePath = `/carros/${car.slug}`
+  const whatsappMessage = buildVehicleInterestMessage({
+    title: car.title,
+    year: car.year,
+    price: formatPrice(car.price),
+    url: sourcePath,
+  })
 
   return (
     <div className="bg-background">
+      <CommercialViewTracker
+        event={{
+          type: "VEHICLE_VIEW",
+          sourcePath,
+          vehicleSlug: car.slug,
+          vehicleTitle: car.title,
+          metadata: { year: car.year, price: car.price },
+        }}
+      />
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
         <Link
           href="/carros"
@@ -77,15 +94,26 @@ export default async function CarDetailPage({ params }: PageProps) {
               </div>
 
               <div className="mt-5 grid gap-3">
-                <Link href="/contato">
-                  <Button size="lg" className="w-full">
-                    Falar no WhatsApp
-                  </Button>
-                </Link>
-                <Link href="/financiamento">
-                  <Button size="lg" variant="outline" className="w-full">
+                <WhatsAppTrackedLink
+                  message={whatsappMessage}
+                  event={{
+                    type: "WHATSAPP_CLICK",
+                    channel: "WHATSAPP",
+                    sourcePath,
+                    ctaLabel: "Falar no WhatsApp",
+                    vehicleSlug: car.slug,
+                    vehicleTitle: car.title,
+                    metadata: { intent: "purchase", year: car.year, price: car.price },
+                  }}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-7 py-3.5 text-lg font-medium text-white transition-all duration-200 hover:bg-primary-dark active:scale-[0.97]"
+                >
+                  Falar no WhatsApp
+                </WhatsAppTrackedLink>
+                <Link
+                  href="/financiamento"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg border-2 border-foreground/20 px-7 py-3.5 text-lg font-medium text-foreground transition-all duration-200 hover:bg-foreground/5 active:scale-[0.97]"
+                >
                     Ver financiamento
-                  </Button>
                 </Link>
               </div>
             </aside>

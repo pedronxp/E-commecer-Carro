@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Image from "next/image";
 import Link from "next/link";
-import { BadgePercent, Calculator, Database, Filter, Globe2, PlusCircle, TrendingUp } from "lucide-react";
+import { BadgePercent, Calculator, Database, Filter, Globe2, PlusCircle, TrendingUp, type LucideIcon } from "lucide-react";
 import { findFipexEstimate } from "@/lib/fipe-provider";
 import { prisma } from "@/lib/prisma";
 
@@ -81,7 +81,7 @@ export default async function AdminPromotionsPage({
     .filter((row) => {
       if (view === "below-fipe") return row.discount > 0;
       if (view === "with-margin") return row.grossMargin !== null;
-      if (view === "risk") return row.grossMargin !== null && row.grossMargin < 0;
+      if (view === "risk") return row.marginPercent !== null && row.marginPercent < targetMargin;
       if (view === "without-fipe") return !row.stateAdjustedFipe;
       return true;
     });
@@ -214,16 +214,17 @@ export default async function AdminPromotionsPage({
             {compareTitle ? (
               <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
                 {standaloneFipe && standaloneSuggestedPrice ? (
-                  <div className="grid gap-3 text-sm md:grid-cols-5">
+                  <div className="grid gap-3 text-sm md:grid-cols-6">
                     <PriceBlock label="FIPE atual" value={formatCurrency(standaloneFipe.price)} strong />
                     <PriceBlock label={`FIPE ${condition.label}`} value={formatCurrency(standaloneAdjustedFipe ?? standaloneFipe.price)} />
                     <PriceBlock label="Preço sugerido" value={formatCurrency(standaloneSuggestedPrice)} tone="success" />
                     <PriceBlock
                       label="Lucro bruto"
                       value={standaloneMargin !== null ? `${formatCurrency(standaloneMargin)} · ${standaloneMarginPercent}%` : "Informe custo"}
-                      tone={standaloneMargin !== null && standaloneMargin < 0 ? "danger" : "success"}
+                      tone={standaloneMarginPercent !== null && standaloneMarginPercent < targetMargin ? "danger" : "success"}
                     />
-                    <PriceBlock label="Fonte" value={standaloneFipe.referenceMonth} />
+                    <PriceBlock label="Fonte" value={`${standaloneFipe.provider} - ${standaloneFipe.confidence}`} />
+                    <PriceBlock label="Match" value={`${standaloneFipe.referenceMonth} - ${standaloneFipe.title}`} />
                   </div>
                 ) : (
                   <p className="text-sm leading-6 text-slate-600">
@@ -289,13 +290,14 @@ export default async function AdminPromotionsPage({
                       ) : null}
                     </div>
                   </div>
-                  <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 xl:text-right">
+                  <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 xl:text-right">
                     <PriceBlock label="Venda atual" value={formatCurrency(vehicle.price)} strong />
                     <PriceBlock label="Sugerido" value={formatCurrency(suggestedPrice)} tone="success" />
                     <PriceBlock label="Custo" value={vehicle.purchasePrice ? formatCurrency(vehicle.purchasePrice) : "Não informado"} />
-                    <PriceBlock label="Margem" value={grossMargin !== null ? `${formatCurrency(grossMargin)}${marginPercent !== null ? ` · ${marginPercent}%` : ""}` : "Sem custo"} tone={grossMargin && grossMargin < 0 ? "danger" : "success"} />
+                    <PriceBlock label="Margem" value={grossMargin !== null ? `${formatCurrency(grossMargin)}${marginPercent !== null ? ` · ${marginPercent}%` : ""}` : "Sem custo"} tone={marginPercent !== null && marginPercent < targetMargin ? "danger" : "success"} />
                     <PriceBlock label={`FIPE ${condition.label}`} value={stateAdjustedFipe ? formatCurrency(stateAdjustedFipe) : "Não informado"} />
                     <PriceBlock label="Comparativo" value={discount > 0 ? `${discount}% abaixo` : "Sem desconto"} tone={discount > 0 ? "success" : "muted"} />
+                    <PriceBlock label="Fonte FIPE" value={vehicle.fipePrice ? "Cadastro/manual" : "Fallback manual"} tone={vehicle.fipePrice ? "muted" : "danger"} />
                   </div>
                 </div>
               </article>
@@ -368,7 +370,7 @@ function MetricCard({
   value,
   detail,
 }: {
-  icon: typeof Database;
+  icon: LucideIcon;
   label: string;
   value: string | number;
   detail: string;

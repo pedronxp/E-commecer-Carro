@@ -14,6 +14,7 @@ export type AdminNavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
+  adminOnly?: boolean;
 };
 
 export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
@@ -24,7 +25,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { href: "/admin/sell-leads", label: "Vendas recebidas", icon: MessageSquareText },
   { href: "/admin/brands", label: "Marcas / Fabricantes", icon: Factory },
   { href: "/admin/categories", label: "Categorias / Segmentos", icon: Layers3 },
-  { href: "/admin/users", label: "Acessos", icon: ShieldCheck },
+  { href: "/admin/users", label: "Operadores", icon: ShieldCheck, adminOnly: true },
 ];
 
 const ADMIN_ROUTE_TITLES: Array<{ match: (pathname: string) => boolean; title: string }> = [
@@ -35,7 +36,7 @@ const ADMIN_ROUTE_TITLES: Array<{ match: (pathname: string) => boolean; title: s
   { match: (pathname) => pathname.startsWith("/admin/sell-leads"), title: "Vendas recebidas" },
   { match: (pathname) => pathname.startsWith("/admin/brands"), title: "Marcas / Fabricantes" },
   { match: (pathname) => pathname.startsWith("/admin/categories"), title: "Categorias / Segmentos" },
-  { match: (pathname) => pathname.startsWith("/admin/users"), title: "Acessos" },
+  { match: (pathname) => pathname.startsWith("/admin/users"), title: "Operadores" },
 ];
 
 export function getAdminRouteTitle(pathname: string): string {
