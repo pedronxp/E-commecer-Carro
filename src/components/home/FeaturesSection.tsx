@@ -35,10 +35,10 @@ const features = [
 
 export default function FeaturesSection() {
   return (
-    <section className="bg-white px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+    <section className="border-y border-border bg-background px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
       <div className="mx-auto max-w-7xl">
         <div className="mx-auto mb-8 max-w-2xl text-center sm:mb-10">
-          <span className="inline-block rounded-full border border-border bg-surface px-3 py-1 text-xs font-semibold text-muted">
+          <span className="inline-block rounded-full border border-border bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted">
             Diferenciais
           </span>
           <h2 className="mt-3 text-2xl font-bold text-foreground sm:text-3xl">
@@ -53,9 +53,9 @@ export default function FeaturesSection() {
           {features.map((feature) => (
             <div
               key={feature.title}
-              className="group rounded-xl border border-border bg-surface p-5 transition-all hover:border-primary/20 hover:shadow-md"
+              className="group rounded-xl border border-border bg-white p-5 transition-all hover:border-primary/30 hover:shadow-md"
             >
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
                 <feature.icon className="h-5 w-5" />
               </div>
               <h3 className="text-base font-semibold text-foreground">{feature.title}</h3>

@@ -42,3 +42,44 @@ export const carSchema = z.object({
 export const carToggleSchema = z.object({
   carId: z.string().min(1),
 });
+
+export const sellLeadIntentEnum = z.enum(["DIRECT_SALE", "CONSIGNMENT", "EVALUATE_BOTH"]);
+
+export type SellLeadIntentType = z.infer<typeof sellLeadIntentEnum>;
+
+export const sellLeadIntentLabels: Record<SellLeadIntentType, string> = {
+  DIRECT_SALE: "Venda direta",
+  CONSIGNMENT: "Consignação",
+  EVALUATE_BOTH: "Quero avaliar as duas",
+};
+
+/** Transform empty string to undefined so optional fields remain absent. */
+function blankToOptional(val: unknown) {
+  return val === "" ? undefined : val;
+}
+
+export const sellLeadSchema = z.object({
+  name: z.string().trim().min(2, "Informe o nome completo.").max(120),
+  email: z.string().email("Informe um e-mail válido."),
+  phone: z.string().trim().max(30).optional().default(""),
+  vehicleModel: z.string().trim().min(2, "Informe o modelo do veículo.").max(200),
+  year: z.preprocess(
+    blankToOptional,
+    z.coerce.number().int().min(1900).max(2100).optional().nullable(),
+  ),
+  mileage: z.preprocess(
+    blankToOptional,
+    z.coerce.number().int().nonnegative().max(9_999_999).optional().nullable(),
+  ),
+  intent: sellLeadIntentEnum,
+  notes: z.string().trim().max(2000).optional().default(""),
+  consent: z.literal(true, {
+    message: "É necessário autorizar o tratamento de dados conforme a LGPD.",
+  }),
+});
+
+export type SellLeadInput = z.infer<typeof sellLeadSchema>;
+
+export function parseSellLeadInput(data: unknown) {
+  return sellLeadSchema.safeParse(data);
+}

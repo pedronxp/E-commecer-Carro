@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CookiePreferencesButton } from "@/components/layout/CookiePreferencesButton";
 
 export const metadata: Metadata = {
   title: "LGPD e Cookies - Lima Automóveis",
@@ -39,6 +40,9 @@ export default function LgpdPage() {
           <p>
             Cookies necessários são usados para segurança, sessão e preferências básicas. Cookies opcionais de métricas
             e marketing só devem ser ativados quando o visitante permitir no banner de preferências.
+          </p>
+          <p className="mt-3">
+            <CookiePreferencesButton />
           </p>
         </section>
 
