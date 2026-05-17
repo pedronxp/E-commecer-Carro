@@ -26,14 +26,14 @@ export default function SearchBar() {
         router.push(`/carros?${params.toString()}`)
       }, 300)
     },
-    [router, searchParams]
+    [router, searchParams],
   )
 
   return (
     <form role="search" onSubmit={(e) => e.preventDefault()}>
       <Input
         icon={<Search className="h-4 w-4" />}
-        placeholder="Buscar por modelo ou marca..."
+        placeholder="Procure por modelo, marca ou versão"
         defaultValue={searchParams.get("search") || ""}
         onChange={(e) => handleSearch(e.target.value)}
         className="w-full"

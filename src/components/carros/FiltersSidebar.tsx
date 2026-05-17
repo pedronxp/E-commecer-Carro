@@ -9,10 +9,10 @@ import { NumberInput } from "@/components/ui/NumberInput"
 const fuelTypes = ["Gasolina", "Diesel", "Híbrido", "Elétrico"]
 const transmissions = ["Automática", "Manual"]
 const sortOptions = [
-  { value: "price-asc", label: "Menor Preço" },
-  { value: "price-desc", label: "Maior Preço" },
-  { value: "year-desc", label: "Mais Novo" },
-  { value: "year-asc", label: "Mais Antigo" },
+  { value: "price-asc", label: "Menor preço" },
+  { value: "price-desc", label: "Maior preço" },
+  { value: "year-desc", label: "Mais novo" },
+  { value: "year-asc", label: "Mais antigo" },
 ]
 
 export default function FiltersSidebar() {
@@ -39,12 +39,12 @@ export default function FiltersSidebar() {
     <aside className="space-y-6">
       <form onSubmit={(e) => e.preventDefault()}>
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">Filtros</h3>
+          <h3 className="text-sm font-semibold text-foreground">Filtros do estoque</h3>
           <button
             type="button"
             onClick={resetFilters}
             disabled={!hasFilters}
-            className="flex items-center gap-1 text-xs text-muted hover:text-primary transition-colors disabled:opacity-30 disabled:pointer-events-none"
+            className="flex items-center gap-1 text-xs text-muted transition-colors hover:text-primary disabled:pointer-events-none disabled:opacity-30"
           >
             <RotateCcw className="h-3 w-3" /> Limpar
           </button>
@@ -68,12 +68,12 @@ export default function FiltersSidebar() {
             <legend className="mb-1.5 text-xs font-medium text-muted">Preço</legend>
             <div className="flex gap-2">
               <NumberInput
-                placeholder="Mín"
+                placeholder="Mín."
                 value={searchParams.get("minPrice") || ""}
                 onChange={(e) => updateParam("minPrice", e.target.value)}
               />
               <NumberInput
-                placeholder="Máx"
+                placeholder="Máx."
                 value={searchParams.get("maxPrice") || ""}
                 onChange={(e) => updateParam("maxPrice", e.target.value)}
               />
@@ -84,12 +84,12 @@ export default function FiltersSidebar() {
             <legend className="mb-1.5 text-xs font-medium text-muted">Ano</legend>
             <div className="flex gap-2">
               <NumberInput
-                placeholder="Mín"
+                placeholder="Mín."
                 value={searchParams.get("minYear") || ""}
                 onChange={(e) => updateParam("minYear", e.target.value)}
               />
               <NumberInput
-                placeholder="Máx"
+                placeholder="Máx."
                 value={searchParams.get("maxYear") || ""}
                 onChange={(e) => updateParam("maxYear", e.target.value)}
               />
@@ -127,7 +127,7 @@ export default function FiltersSidebar() {
             value={searchParams.get("sort") || ""}
             onChange={(e) => updateParam("sort", e.target.value)}
           >
-            <option value="">Padrão</option>
+            <option value="">Padrão da loja</option>
             {sortOptions.map((s) => (
               <option key={s.value} value={s.value}>
                 {s.label}

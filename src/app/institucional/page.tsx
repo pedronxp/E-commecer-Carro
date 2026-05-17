@@ -1,55 +1,56 @@
 import type { Metadata } from "next"
-import { Shield, Users, Award, Heart } from "lucide-react"
+import Link from "next/link"
 
 export const metadata: Metadata = {
   title: "Institucional - Lima Automóveis",
-  description: "Conheça a história e os valores da Lima Automóveis.",
+  description: "Conheça a Lima Automóveis e a forma de atendimento da loja.",
 }
 
 const values = [
-  { icon: Shield, title: "Confiança", text: "Mais de 15 anos de mercado com milhares de clientes satisfeitos." },
-  { icon: Users, title: "Atendimento", text: "Equipe dedicada para oferecer a melhor experiência na compra do seu veículo." },
-  { icon: Award, title: "Qualidade", text: "Todos os veículos passam por rigorosa inspeção antes de serem comercializados." },
-  { icon: Heart, title: "Transparência", text: "Condições claras, sem letras miúdas. Você sabe exatamente o que está comprando." },
+  { title: "Catálogo claro", text: "Carros organizados com fotos, preço e informações principais para facilitar a escolha." },
+  { title: "Atendimento direto", text: "O cliente fala com a loja para confirmar disponibilidade, visita, troca e financiamento." },
+  { title: "Negociação sem rodeio", text: "A conversa parte do carro que o cliente escolheu e do que ele realmente precisa resolver." },
+  { title: "Compra, venda e troca", text: "A mesma loja atende quem quer comprar, vender, trocar ou deixar o veículo em consignação." },
 ]
 
 export default function InstitucionalPage() {
   return (
-    <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold text-foreground sm:text-4xl">Sobre a Lima Automóveis</h1>
-        <p className="mt-4 text-lg text-muted max-w-2xl mx-auto">
-          Referência no mercado automotivo, a Lima Automóveis oferece veículos seminovos e novos com procedência,
-          garantia e as melhores condições de pagamento.
+    <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
+      <div className="max-w-3xl">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Sobre a loja</p>
+        <h1 className="mt-3 text-3xl font-bold text-foreground sm:text-4xl">
+          Lima Automóveis: catálogo, atendimento e negociação no mesmo lugar.
+        </h1>
+        <p className="mt-4 text-base leading-relaxed text-muted sm:text-lg">
+          O site existe para aproximar o cliente da loja. Você vê os carros, separa as opções que fazem sentido e
+          chama o atendimento para confirmar detalhes antes de visitar.
         </p>
       </div>
 
-      <div className="mt-16 grid gap-8 sm:grid-cols-2">
-        {values.map((item) => (
-          <div key={item.title} className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <item.icon className="h-6 w-6" />
-            </div>
+      <div className="mt-12 grid gap-4 sm:grid-cols-2">
+        {values.map((item, index) => (
+          <div key={item.title} className="rounded-lg border border-border bg-white p-6 shadow-sm">
+            <span className="font-mono text-xs font-semibold text-primary">{String(index + 1).padStart(2, "0")}</span>
             <h3 className="mt-4 text-lg font-semibold text-foreground">{item.title}</h3>
-            <p className="mt-2 text-sm text-muted leading-relaxed">{item.text}</p>
+            <p className="mt-2 text-sm leading-relaxed text-muted">{item.text}</p>
           </div>
         ))}
       </div>
 
-      <div className="mt-16 rounded-xl bg-secondary p-8 text-center text-white sm:p-12">
-        <h2 className="text-2xl font-bold">Números que nos definem</h2>
-        <div className="mt-8 grid gap-8 sm:grid-cols-3">
+      <div className="mt-12 rounded-xl bg-secondary p-8 text-white sm:p-10">
+        <div className="grid gap-6 lg:grid-cols-[1fr_1fr] lg:items-end">
           <div>
-            <p className="text-3xl font-bold text-primary">+15</p>
-            <p className="mt-1 text-sm text-gray-400">Anos de mercado</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary-light">Como atendemos</p>
+            <h2 className="mt-3 text-2xl font-bold">Escolha o carro no catálogo e continue pelo WhatsApp.</h2>
           </div>
           <div>
-            <p className="text-3xl font-bold text-primary">+5.000</p>
-            <p className="mt-1 text-sm text-gray-400">Veículos vendidos</p>
-          </div>
-          <div>
-            <p className="text-3xl font-bold text-primary">98%</p>
-            <p className="mt-1 text-sm text-gray-400">Clientes satisfeitos</p>
+            <p className="text-sm leading-relaxed text-slate-300">
+              Para compra, troca, venda ou financiamento, o atendimento começa melhor quando o cliente já chega com
+              uma referência: modelo, ano, preço e dúvida principal.
+            </p>
+            <Link href="/contato" className="mt-5 inline-flex text-sm font-semibold text-primary-light hover:text-white">
+              Falar com a loja
+            </Link>
           </div>
         </div>
       </div>

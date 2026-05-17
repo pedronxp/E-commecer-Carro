@@ -121,55 +121,34 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.brand-logo-mark {
+.brand-logo-monogram {
+  position: relative;
   display: inline-flex;
-  height: 2.35rem;
-  width: 2.35rem;
+  height: 2.4rem;
+  width: 2.4rem;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
-  box-shadow: 0 10px 26px rgb(5 150 105 / 0.28);
+  border: 1px solid color-mix(in oklch, currentColor 16%, transparent);
+  border-radius: 0.65rem;
+  background: color-mix(in oklch, currentColor 5%, transparent);
 }
 
-.brand-logo-mark svg {
-  height: 1.95rem;
-  width: 1.95rem;
-}
-
-.brand-logo-mark-dark {
-  background: linear-gradient(135deg, #059669, #0EA5E9);
-  color: #FFFFFF;
-}
-
-.brand-logo-mark-light {
-  background: linear-gradient(135deg, #10B981, #22D3EE);
-  color: #0F172A;
-}
-
-.brand-wordmark {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.22rem;
-  color: #0F172A;
-  font-weight: 900;
-  letter-spacing: 0;
+.brand-logo-l {
+  font-size: 1.18rem;
+  font-weight: 950;
   line-height: 1;
-  text-shadow: 0 8px 20px rgb(15 23 42 / 0.15);
+  letter-spacing: 0;
 }
 
-.brand-wordmark-main {
-  font-size: 1.26rem;
-}
-
-.brand-wordmark-sub {
-  font-size: 1.08rem;
-  font-weight: 800;
-}
-
-.brand-wordmark-light {
-  color: #FFFFFF;
-  text-shadow: 0 10px 24px rgb(0 0 0 / 0.28);
+.brand-logo-line {
+  position: absolute;
+  right: 0.45rem;
+  bottom: 0.52rem;
+  height: 2px;
+  width: 0.75rem;
+  border-radius: 999px;
+  background: var(--primary);
 }
 
 .home-cta-panel {
@@ -192,7 +171,7 @@ body {
 }
 
 @media (max-width: 380px) {
-  .brand-wordmark-sub {
+  .brand-logo-monogram + span span:last-child {
     display: none;
   }
 }

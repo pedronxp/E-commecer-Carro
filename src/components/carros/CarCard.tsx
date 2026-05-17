@@ -42,7 +42,7 @@ export default function CarCard({ car }: CarCardProps) {
           )}
           {(car.isPromotion || discount > 0) && (
             <span className="absolute bottom-3 left-3 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm">
-              {discount > 0 ? `${discount}% abaixo da FIPE` : "Promocao"}
+              {discount > 0 ? `${discount}% abaixo da FIPE` : "Promoção"}
             </span>
           )}
         </div>

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, MapPin, Fuel, Gauge, Calendar } from "lucide-react"
+import { ArrowLeft, Calendar, Fuel, Gauge, MapPin, MessageCircle, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import CarMediaViewer from "@/components/carros/CarMediaViewer"
 import { getCarBySlug } from "@/lib/data"
@@ -24,81 +24,92 @@ export default async function CarDetailPage({ params }: PageProps) {
       : 0
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-      <Link
-        href="/carros"
-        className="mb-6 inline-flex items-center gap-1 text-sm text-muted hover:text-primary transition-colors"
-      >
-        <ArrowLeft className="h-4 w-4" /> Voltar ao catálogo
-      </Link>
+    <div className="bg-background">
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+        <Link
+          href="/carros"
+          className="mb-6 inline-flex items-center gap-1 text-sm font-medium text-muted transition-colors hover:text-primary"
+        >
+          <ArrowLeft className="h-4 w-4" /> Voltar ao catálogo
+        </Link>
 
-      <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
-        <CarMediaViewer title={car.title} images={car.images} />
+        <div className="overflow-hidden rounded-xl border border-border bg-white shadow-sm">
+          <CarMediaViewer title={car.title} images={car.images} />
 
-        <div className="p-6 sm:p-8">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-medium uppercase tracking-wider text-muted">
+          <div className="grid gap-8 p-5 sm:p-8 lg:grid-cols-[1fr_340px]">
+            <main>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
                 {car.brand.name}
               </p>
-              <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
+              <h1 className="mt-2 text-2xl font-bold leading-tight text-foreground sm:text-3xl">
                 {car.title}
               </h1>
-            </div>
-            <div className="text-left sm:text-right">
-              <p className="text-3xl font-bold text-primary">{formatPrice(car.price)}</p>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
+                Veja fotos, ano, quilometragem e detalhes do carro. Para confirmar disponibilidade ou combinar visita,
+                chame a loja pelo atendimento.
+              </p>
+
+              <div className="mt-6 grid grid-cols-2 gap-3 rounded-lg border border-border bg-surface p-4 sm:grid-cols-4">
+                <Spec icon={Calendar} label="Ano" value={String(car.year)} />
+                <Spec icon={Gauge} label="Quilometragem" value={`${car.mileage?.toLocaleString("pt-BR") ?? "N/I"} km`} />
+                <Spec icon={Fuel} label="Combustível" value={car.fuelType ?? "N/I"} />
+                <Spec icon={MapPin} label="Localização" value={car.location ?? "N/I"} />
+              </div>
+
+              <div className="mt-7">
+                <h2 className="text-lg font-semibold text-foreground">Sobre este veículo</h2>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{car.description}</p>
+              </div>
+            </main>
+
+            <aside className="h-fit rounded-lg border border-border bg-surface p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Preço anunciado</p>
+              <p className="mt-2 text-3xl font-bold text-primary">{formatPrice(car.price)}</p>
               {discount > 0 ? (
                 <p className="mt-1 text-sm font-semibold text-emerald-700">
-                  {discount}% abaixo da FIPE ({formatPrice(car.fipePrice ?? 0)})
+                  {discount}% abaixo da FIPE de referência ({formatPrice(car.fipePrice ?? 0)})
                 </p>
               ) : null}
-            </div>
-          </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-4 rounded-xl bg-surface p-4 sm:grid-cols-4 sm:gap-6 sm:p-6">
-            <div className="flex flex-col items-center gap-1 text-center">
-              <Calendar className="h-5 w-5 text-primary" />
-              <span className="text-xs text-muted">Ano</span>
-              <span className="text-sm font-semibold">{car.year}</span>
-            </div>
-            <div className="flex flex-col items-center gap-1 text-center">
-              <Gauge className="h-5 w-5 text-primary" />
-              <span className="text-xs text-muted">Quilometragem</span>
-              <span className="text-sm font-semibold">
-                {car.mileage?.toLocaleString("pt-BR") ?? "N/I"} km
-              </span>
-            </div>
-            <div className="flex flex-col items-center gap-1 text-center">
-              <Fuel className="h-5 w-5 text-primary" />
-              <span className="text-xs text-muted">Combustível</span>
-              <span className="text-sm font-semibold">{car.fuelType ?? "N/I"}</span>
-            </div>
-            <div className="flex flex-col items-center gap-1 text-center">
-              <MapPin className="h-5 w-5 text-primary" />
-              <span className="text-xs text-muted">Localização</span>
-              <span className="text-sm font-semibold">{car.location ?? "N/I"}</span>
-            </div>
-          </div>
+              <div className="mt-5 rounded-lg border border-border bg-white p-4 text-sm leading-relaxed text-muted">
+                <MessageCircle className="mb-2 h-5 w-5 text-primary" />
+                Gostou desse modelo? Fale com a loja para confirmar disponibilidade, tirar dúvidas e combinar o melhor horário.
+              </div>
 
-          <div className="mt-6">
-            <h2 className="text-lg font-semibold text-foreground">Descrição</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted">{car.description}</p>
-          </div>
-
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/financiamento">
-              <Button size="lg" className="flex-1 sm:flex-none">
-                Solicitar Financiamento
-              </Button>
-            </Link>
-            <Link href="/contato">
-              <Button size="lg" variant="outline" className="flex-1 sm:flex-none">
-                Agendar Visita
-              </Button>
-            </Link>
+              <div className="mt-5 grid gap-3">
+                <Link href="/contato">
+                  <Button size="lg" className="w-full">
+                    Falar no WhatsApp
+                  </Button>
+                </Link>
+                <Link href="/financiamento">
+                  <Button size="lg" variant="outline" className="w-full">
+                    Ver financiamento
+                  </Button>
+                </Link>
+              </div>
+            </aside>
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function Spec({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon
+  label: string
+  value: string
+}) {
+  return (
+    <div className="min-w-0">
+      <Icon className="h-4 w-4 text-primary" />
+      <span className="mt-2 block text-xs text-muted">{label}</span>
+      <span className="mt-0.5 block truncate text-sm font-semibold text-foreground">{value}</span>
     </div>
   )
 }
