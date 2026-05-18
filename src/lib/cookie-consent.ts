@@ -40,7 +40,7 @@ export function writeConsent(preferences: {
   };
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  document.cookie = `${COOKIE_NAME}=${encodeURIComponent(JSON.stringify(payload))}; Path=/; Max-Age=${ONE_YEAR_SECONDS}; SameSite=Lax`;
+  writeConsentCookie(payload);
   window.dispatchEvent(
     new CustomEvent("lima:cookie-consent-updated", { detail: payload }),
   );
@@ -81,6 +81,11 @@ function parseCookie(raw: string, name: string): string | null {
   } catch {
     return null;
   }
+}
+
+function writeConsentCookie(payload: CookiePreferences): void {
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${COOKIE_NAME}=${encodeURIComponent(JSON.stringify(payload))}; Path=/; Max-Age=${ONE_YEAR_SECONDS}; SameSite=Lax${secure}`;
 }
 
 function escapeRegex(value: string): string {

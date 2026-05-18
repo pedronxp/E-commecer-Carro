@@ -1,13 +1,12 @@
-import { NextResponse } from "next/server";
-
+import { unauthorizedError } from "@/lib/api";
 import { getCurrentUser } from "@/lib/session";
 
-export async function GET() {
+export async function GET(request: Request) {
   const user = await getCurrentUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    return unauthorizedError("Não autenticado.", request);
   }
 
-  return NextResponse.json({ user });
+  return Response.json({ user });
 }

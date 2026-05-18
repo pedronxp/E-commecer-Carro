@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireInternalAccess } from "@/lib/api";
 import { findFipexEstimate } from "@/lib/fipe-provider";
+import { buildPriceDecision, buildPriceGuidance, normalizePriceCondition, normalizeTargetMargin, parseMoneyText } from "@/lib/price-comparison";
+import { buildPriceInsightSearchFilters, normalizeSearchText, scoreLocalPriceCandidate } from "@/lib/price-insight-filters";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -14,19 +16,51 @@ export async function GET(request: Request) {
   const year = Number(searchParams.get("year") || "");
   const vehicleType = searchParams.get("vehicleType") || "CAR";
   const safeVehicleType = isVehicleType(vehicleType) ? vehicleType : "CAR";
-  const tokens = title.split(" ").filter((token) => token.length >= 3).slice(0, 5);
+  const conditionKey = normalizePriceCondition(searchParams.get("condition"));
+  const targetMargin = normalizeTargetMargin(searchParams.get("targetMargin"));
+  const modelId = normalizeOptional(searchParams.get("modelId") ?? searchParams.get("compareModelId"));
+  const modelSlug = normalizeOptional(searchParams.get("modelSlug") ?? searchParams.get("compareModelSlug"));
+  const fuelId = normalizeOptional(searchParams.get("fuelId") ?? searchParams.get("compareFuelId"));
+  const fuelAcronym = normalizeOptional(searchParams.get("fuelAcronym") ?? searchParams.get("compareFuelAcronym"));
+  const purchasePrice = parseMoneyText(
+    searchParams.get("purchasePrice") ?? searchParams.get("cost") ?? searchParams.get("compareCost"),
+  );
+  const currentPrice = parseMoneyText(
+    searchParams.get("currentPrice") ?? searchParams.get("salePrice") ?? searchParams.get("compareSalePrice"),
+  );
+  const searchFilters = buildPriceInsightSearchFilters({ title, year });
+  const { tokens, targetYear, yearWindow, minimumTokenMatches } = searchFilters;
   const parameters = {
     title,
-    year: Number.isFinite(year) ? year : null,
+    year: targetYear,
     vehicleType,
     normalizedVehicleType: vehicleType === "ELECTRIC_BIKE" ? "ELECTRIC_BIKE" : safeVehicleType,
+    conditionKey,
+    targetMargin,
+    purchasePrice,
+    currentPrice,
     tokens,
+    priceFilters: {
+      yearWindow,
+      minimumTokenMatches,
+      maxYearDistance: yearWindow ? 2 : null,
+    },
+    providerHints: {
+      modelId,
+      modelSlug,
+      fuelId,
+      fuelAcronym,
+    },
   };
+  const manualDecision = buildPriceDecision({ purchasePrice, currentPrice, targetMargin, conditionKey });
+  const manualGuidance = buildPriceGuidance(manualDecision);
 
   if (vehicleType === "ELECTRIC_BIKE") {
     return NextResponse.json({
       fipeEstimate: null,
       averageSalePrice: null,
+      decision: manualDecision,
+      guidance: manualGuidance,
       sampleCount: 0,
       confidence: "manual",
       source: "Bike eletrica nao possui cobertura FIPE confiavel neste fluxo. Informe o preco de referencia manualmente.",
@@ -42,6 +76,8 @@ export async function GET(request: Request) {
     return NextResponse.json({
       fipeEstimate: null,
       averageSalePrice: null,
+      decision: manualDecision,
+      guidance: manualGuidance,
       sampleCount: 0,
       confidence: "manual",
       source: "Digite o nome do veiculo para buscar referencia no estoque local e na FipeX.",
@@ -57,9 +93,10 @@ export async function GET(request: Request) {
     prisma.car.findMany({
       where: {
         vehicleType: safeVehicleType,
+        ...(yearWindow ? { year: { gte: yearWindow.min, lte: yearWindow.max } } : {}),
         OR: tokens.map((token) => ({ title: { contains: token, mode: "insensitive" as const } })),
       },
-      take: 12,
+      take: 24,
       orderBy: { updatedAt: "desc" },
       select: {
         title: true,
@@ -71,17 +108,25 @@ export async function GET(request: Request) {
     }),
     findFipexEstimate({
       title,
-      year: Number.isFinite(year) ? year : undefined,
+      year: targetYear ?? undefined,
       vehicleType: safeVehicleType,
+      modelId,
+      modelSlug,
+      fuelId,
+      fuelAcronym,
     }),
   ]);
 
   const scored = candidates
-    .map((vehicle) => ({
-      vehicle,
-      score: scoreVehicle(vehicle.title, tokens, year, vehicle.year),
-    }))
-    .filter((item) => item.score > 0)
+    .map((vehicle) => {
+      const score = scoreVehicle(vehicle.title, tokens, targetYear, vehicle.year, minimumTokenMatches);
+
+      return {
+        vehicle,
+        ...score,
+      };
+    })
+    .filter((item) => item.accepted)
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
 
@@ -93,6 +138,14 @@ export async function GET(request: Request) {
   const localFipeEstimate = average(fipeValues);
   const fipeEstimate = externalEstimate?.price ?? localFipeEstimate;
   const averageSalePrice = average(saleValues);
+  const decision = buildPriceDecision({
+    fipePrice: fipeEstimate,
+    purchasePrice,
+    currentPrice: currentPrice ?? averageSalePrice,
+    targetMargin,
+    conditionKey,
+  });
+  const guidance = buildPriceGuidance(decision);
   const fallbackReason = externalEstimate
     ? null
     : localFipeEstimate
@@ -102,6 +155,8 @@ export async function GET(request: Request) {
   return NextResponse.json({
     fipeEstimate,
     averageSalePrice,
+    decision,
+    guidance,
     sampleCount: scored.length,
     confidence: externalEstimate ? externalEstimate.confidence : scored.length >= 3 ? "alta" : scored.length >= 1 ? "media" : "baixa",
     source: externalEstimate
@@ -114,32 +169,37 @@ export async function GET(request: Request) {
     providerStatus: externalEstimate ? "provider" : localFipeEstimate ? "local-fallback" : "manual",
     parameters,
     externalEstimate,
-    matches: scored.map(({ vehicle }) => ({
+    matches: scored.map(({ vehicle, score, tokenMatches, requiredTokenMatches, yearDistance }) => ({
       title: vehicle.title,
       year: vehicle.year,
       price: vehicle.price,
       fipePrice: vehicle.fipePrice,
       purchasePrice: vehicle.purchasePrice,
+      score,
+      tokenMatches,
+      requiredTokenMatches,
+      yearDistance,
     })),
   });
 }
 
 function normalize(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^\w\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return normalizeSearchText(value);
 }
 
-function scoreVehicle(title: string, tokens: string[], targetYear: number, vehicleYear: number): number {
-  const normalizedTitle = normalize(title);
-  const tokenScore = tokens.reduce((score, token) => score + (normalizedTitle.includes(token) ? 1 : 0), 0);
-  const yearScore = targetYear && vehicleYear ? Math.max(0, 2 - Math.abs(targetYear - vehicleYear)) : 0;
+function normalizeOptional(value?: string | null): string | null {
+  const normalized = String(value ?? "").trim();
+  return normalized ? normalized : null;
+}
 
-  return tokenScore + yearScore;
+function scoreVehicle(title: string, tokens: string[], targetYear: number | null, vehicleYear: number, minimumTokenMatches: number) {
+  return scoreLocalPriceCandidate({
+    candidateTitle: title,
+    tokens,
+    targetYear,
+    vehicleYear,
+    minimumTokenMatches,
+  });
 }
 
 function average(values: number[]): number | null {

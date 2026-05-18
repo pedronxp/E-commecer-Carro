@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function AdminBrandsRedirectPage() {
+export default function AdminTaxonomiesIndexPage() {
   redirect("/admin/taxonomies/brands");
 }

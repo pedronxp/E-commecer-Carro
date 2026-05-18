@@ -8,6 +8,20 @@ export const categorySchema = z.object({
   name: z.string().trim().min(2).max(80),
 });
 
+export function normalizeNameKey(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function slugifyName(value: string): string {
+  return normalizeNameKey(value).replace(/\s+/g, "-").replace(/-+/g, "-");
+}
+
 export const registerSchema = z.object({
   name: z.string().trim().min(2).max(120),
   email: z.string().email(),

@@ -434,7 +434,7 @@ export function CarForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 lg:p-6">
-      <section className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-4">
+      <section className="rounded-lg border border-emerald-100 bg-emerald-50/70 p-4">
         <div className="flex items-start gap-3">
           <Info className="mt-0.5 h-5 w-5 text-emerald-700" />
           <div>
@@ -459,7 +459,7 @@ export function CarForm({
         </button>
       </div>
 
-      <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+      <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
         <div>
           <h2 className="text-sm font-semibold text-slate-950">Dados públicos e parâmetros internos</h2>
           <p className="mt-1 text-xs leading-5 text-slate-500">
@@ -1370,11 +1370,28 @@ async function createTaxonomyOption(endpoint: "/api/brands" | "/api/categories",
     body: JSON.stringify({ name }),
   });
 
+  const payload = await response.json().catch(() => null) as
+    | { data?: { id: string; name: string }; error?: { message?: string } }
+    | { id?: string; name?: string }
+    | null;
+
   if (!response.ok) {
-    throw new Error("Não foi possível criar o item. Verifique se ele já existe ou tente novamente.");
+    const message =
+      payload && "error" in payload && payload.error?.message
+        ? payload.error.message
+        : "Nao foi possivel criar o item. Verifique duplicidade, permissao e tente novamente.";
+    throw new Error(message);
   }
 
-  return (await response.json()) as { id: string; name: string };
+  if (payload && "data" in payload && payload.data) {
+    return payload.data;
+  }
+
+  if (payload && "id" in payload && payload.id && payload.name) {
+    return { id: payload.id, name: payload.name };
+  }
+
+  throw new Error("Item criado, mas a resposta da API veio incompleta. Recarregue a pagina antes de continuar.");
 }
 
 function upsertOption<T extends { id: string; name: string }>(options: T[], option: T): T[] {

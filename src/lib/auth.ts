@@ -24,6 +24,16 @@ export type SessionPayload = {
   role: UserRole;
 };
 
+type SessionCookieOptions = {
+  httpOnly: true;
+  secure: boolean;
+  sameSite: "lax";
+  path: "/";
+  maxAge: number;
+  priority: "high";
+  expires?: Date;
+};
+
 type ValidationResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: string };
@@ -149,6 +159,25 @@ export async function verifySessionToken(
   }
 }
 
+export function getSessionCookieOptions(request?: Request): SessionCookieOptions {
+  return {
+    httpOnly: true,
+    secure: shouldUseSecureCookie(request),
+    sameSite: "lax",
+    path: "/",
+    maxAge: SESSION_MAX_AGE_SECONDS,
+    priority: "high",
+  };
+}
+
+export function getExpiredSessionCookieOptions(request?: Request): SessionCookieOptions {
+  return {
+    ...getSessionCookieOptions(request),
+    maxAge: 0,
+    expires: new Date(0),
+  };
+}
+
 function getJwtSecret(): Uint8Array {
   const secret = process.env.JWT_SECRET;
 
@@ -157,6 +186,43 @@ function getJwtSecret(): Uint8Array {
   }
 
   return new TextEncoder().encode(secret);
+}
+
+function shouldUseSecureCookie(request?: Request): boolean {
+  const requestUrl = parseUrl(request?.url);
+  const forwardedProto = request?.headers.get("x-forwarded-proto")?.split(",")[0]?.trim().toLowerCase();
+  const host = request?.headers.get("host") ?? requestUrl?.host ?? "";
+
+  if (isLocalHost(host) || isLocalHost(requestUrl?.hostname ?? "")) {
+    return false;
+  }
+
+  if (forwardedProto === "https" || requestUrl?.protocol === "https:") {
+    return true;
+  }
+
+  const configuredUrl = parseUrl(process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "");
+  if (configuredUrl && !isLocalHost(configuredUrl.host)) {
+    return configuredUrl.protocol === "https:";
+  }
+
+  return process.env.NODE_ENV === "production";
+}
+
+function parseUrl(value?: string): URL | null {
+  if (!value) return null;
+  try {
+    return new URL(value.startsWith("http") ? value : `https://${value}`);
+  } catch {
+    return null;
+  }
+}
+
+function isLocalHost(host: string): boolean {
+  const normalized = host.startsWith("[")
+    ? host.slice(1, host.indexOf("]")).toLowerCase()
+    : host.split(":")[0]?.toLowerCase();
+  return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "::1";
 }
 
 function normalizeText(value: unknown): string {

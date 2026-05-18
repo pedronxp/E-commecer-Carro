@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCommercialEventInput, parseSellLeadInput } from "./schemas";
+import { normalizeNameKey, parseCommercialEventInput, parseSellLeadInput, slugifyName } from "./schemas";
 
 describe("parseSellLeadInput", () => {
   const valid = {
@@ -244,5 +244,17 @@ describe("parseCommercialEventInput", () => {
     const metadata = Object.fromEntries(Array.from({ length: 13 }, (_, index) => [`key${index}`, index]));
     const result = parseCommercialEventInput({ ...valid, metadata });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("taxonomy normalization", () => {
+  it("normalizes accents, punctuation, and repeated spacing for duplicate checks", () => {
+    expect(normalizeNameKey("  Honda Automóveis!!  ")).toBe("honda automoveis");
+    expect(normalizeNameKey("Bike   Elétrica")).toBe("bike eletrica");
+  });
+
+  it("creates stable lowercase slugs from brand and category names", () => {
+    expect(slugifyName("Mercedes-Benz")).toBe("mercedes-benz");
+    expect(slugifyName("Bike Elétrica")).toBe("bike-eletrica");
   });
 });

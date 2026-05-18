@@ -1,7 +1,6 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseCommercialEventInput } from "@/lib/schemas";
-import { handleApiError } from "@/lib/api";
+import { apiCreated, handleApiError, validationError } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -10,10 +9,7 @@ export async function POST(request: Request) {
     const parsed = parseCommercialEventInput(await readJson(request));
 
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Evento comercial invalido.", details: parsed.error.flatten() },
-        { status: 400 },
-      );
+      return validationError("Evento comercial invalido.", parsed.error.flatten());
     }
 
     const data = parsed.data;
@@ -37,7 +33,7 @@ export async function POST(request: Request) {
       select: { id: true },
     });
 
-    return NextResponse.json({ id: event.id }, { status: 201 });
+    return apiCreated({ id: event.id });
   } catch (error) {
     return handleApiError(error, "commercial-events.POST");
   }
