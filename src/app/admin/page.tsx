@@ -88,6 +88,7 @@ export default async function AdminPage({
     carsFeatured,
     carsWithFipe,
     carsWithPurchasePrice,
+    carsPricingPending,
     totalBrands,
     totalOperators,
     filteredSellLeads,
@@ -105,6 +106,7 @@ export default async function AdminPage({
     prisma.car.count({ where: { isFeatured: true } }),
     prisma.car.count({ where: { fipePrice: { not: null } } }),
     prisma.car.count({ where: { purchasePrice: { not: null } } }),
+    prisma.car.count({ where: { OR: [{ fipePrice: null }, { purchasePrice: null }] } }),
     prisma.brand.count(),
     prisma.user.count(),
     prisma.sellLead.count({ where: leadWhere }),
@@ -156,10 +158,10 @@ export default async function AdminPage({
       <section className="rounded-xl border border-border bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Operacao comercial</p>
-            <h1 className="mt-2 text-2xl font-black tracking-tight text-foreground sm:text-3xl">Dashboard</h1>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Operação comercial</p>
+            <h1 className="mt-2 text-2xl font-black tracking-tight text-foreground sm:text-3xl">Gestão comercial da loja</h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">
-              Acompanhe leads, WhatsApp, visualizacoes, FIPE e oportunidades de estoque com filtros operacionais.
+              Acompanhe entrada de leads, retorno comercial, sinais de interesse e pendências de precificação FIPE com filtros por período, origem e canal.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -175,7 +177,7 @@ export default async function AdminPage({
               className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-surface"
             >
               <MessageSquareText className="h-4 w-4" />
-              Triar leads
+              Abrir funil de vendas
             </Link>
           </div>
         </div>
@@ -211,15 +213,16 @@ export default async function AdminPage({
         </div>
       </form>
 
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <MetricCard icon={MessageSquareText} label={leadMetricLabel} value={leadMetricValue} detail={leadMetricDetail} />
         <MetricCard icon={MessageCircle} label="Cliques WhatsApp" value={whatsappClicks} detail={`${viewToWhatsapp}% de views viraram WhatsApp`} />
-        <MetricCard icon={Eye} label="Visualizacoes" value={vehicleViews} detail={`${purchaseIntent} intencao(oes) de compra`} />
+        <MetricCard icon={Eye} label="Visualizações de veículos" value={vehicleViews} detail={`${purchaseIntent} intenção(ões) de compra`} />
+        <MetricCard icon={BadgePercent} label="Comparativo FIPE" value={carsPricingPending} detail="veículo(s) sem FIPE ou custo" />
         <MetricCard icon={BadgePercent} label="Cobertura FIPE" value={`${fipeCoverage}%`} detail={`${marginCoverage}% com custo informado`} />
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        <Panel title="Funil do periodo" actionHref="/admin/sell-leads" actionLabel="Ver leads">
+        <Panel title="Conversão do período" actionHref="/admin/sell-leads" actionLabel="Ver funil">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <MiniMetric label="Visualizacoes" value={vehicleViews} />
             <MiniMetric label="WhatsApp" value={whatsappClicks} />
@@ -231,9 +234,9 @@ export default async function AdminPage({
           </div>
         </Panel>
 
-        <Panel title="Veiculos para revisar" actionHref="/admin/promotions" actionLabel="Comparar FIPE">
+        <Panel title="Prioridade de precificação do estoque" actionHref="/admin/promotions" actionLabel="Abrir Comparativo FIPE">
           {vehicleSignals.length === 0 ? (
-            <p className="text-sm text-muted">Ainda nao ha eventos suficientes para apontar oportunidades.</p>
+            <p className="text-sm text-muted">Ainda não há sinal de interesse suficiente para priorizar um veículo. Quando houver visualizações e cliques, esta área aponta onde revisar preço, fotos ou chamada comercial.</p>
           ) : (
             <div className="space-y-3">
               {vehicleSignals.slice(0, 5).map((item) => (
@@ -244,7 +247,7 @@ export default async function AdminPage({
                       {item.views} view(s)
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-muted">{item.whatsappClicks} clique(s) no WhatsApp. Revise preco, fotos ou copy se a procura continuar baixa.</p>
+                  <p className="mt-1 text-xs text-muted">{item.whatsappClicks} clique(s) no WhatsApp. Use o Comparativo FIPE para revisar preço, margem e oportunidade comercial.</p>
                 </div>
               ))}
             </div>
@@ -253,7 +256,7 @@ export default async function AdminPage({
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1fr_1fr]">
-        <Panel title="Leads recentes" actionHref="/admin/sell-leads" actionLabel="Triar">
+        <Panel title="Leads recebidos recentemente" actionHref="/admin/sell-leads" actionLabel="Tratar leads">
           {recentSellLeads.length === 0 ? (
             <p className="text-sm text-muted">Nenhum lead no filtro atual.</p>
           ) : (
@@ -276,7 +279,7 @@ export default async function AdminPage({
           )}
         </Panel>
 
-        <Panel title="Proximas acoes" actionHref="/admin/sell-leads" actionLabel="Abrir fila">
+        <Panel title="Próximos retornos comerciais" actionHref="/admin/sell-leads" actionLabel="Abrir fila">
           {pendingLeads.length === 0 ? (
             <p className="text-sm text-muted">Nenhum follow-up agendado no filtro atual.</p>
           ) : (
@@ -304,14 +307,14 @@ export default async function AdminPage({
           <p className="mt-3 font-semibold text-foreground">Operadores internos</p>
           <p className="mt-1 text-sm text-muted">{totalOperators} acesso(s) ao painel administrativo.</p>
         </Link>
-        <Link href="/admin/brands" className="rounded-xl border border-border bg-white p-5 shadow-sm transition hover:border-primary/30 hover:shadow-md">
+        <Link href="/admin/taxonomies/brands" className="rounded-xl border border-border bg-white p-5 shadow-sm transition hover:border-primary/30 hover:shadow-md">
           <Car className="h-5 w-5 text-sky-700" />
-          <p className="mt-3 font-semibold text-foreground">Base de marcas</p>
+          <p className="mt-3 font-semibold text-foreground">Marcas cadastradas</p>
           <p className="mt-1 text-sm text-muted">{totalBrands} marca(s) organizando o catalogo.</p>
         </Link>
         <Link href="/admin/cars?status=featured" className="rounded-xl border border-border bg-white p-5 shadow-sm transition hover:border-primary/30 hover:shadow-md">
           <Sparkles className="h-5 w-5 text-amber-700" />
-          <p className="mt-3 font-semibold text-foreground">Destaques ativos</p>
+          <p className="mt-3 font-semibold text-foreground">Veículos em destaque</p>
           <p className="mt-1 text-sm text-muted">{carsFeatured} oferta(s) priorizada(s) na vitrine.</p>
         </Link>
       </section>
@@ -319,8 +322,8 @@ export default async function AdminPage({
       <section className="overflow-hidden rounded-xl border border-border bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
-            <h2 className="font-semibold text-foreground">Ultimos veiculos cadastrados</h2>
-            <p className="mt-0.5 text-xs text-muted">Entrada recente no estoque administrativo</p>
+            <h2 className="font-semibold text-foreground">Entrada recente no estoque</h2>
+            <p className="mt-0.5 text-xs text-muted">Últimos veículos cadastrados para revisão operacional</p>
           </div>
           <Link href="/admin/cars" className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:text-primary-dark">
             Ver estoque

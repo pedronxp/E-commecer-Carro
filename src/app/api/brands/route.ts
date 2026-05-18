@@ -1,12 +1,11 @@
-import { NextResponse } from "next/server";
+import { apiCreated, apiData, conflictError, handleApiError, requireInternalAccess } from "@/lib/api";
+import { brandSchema, slugifyName } from "@/lib/schemas";
 import { prisma } from "@/lib/prisma";
-import { requireInternalAccess, handleApiError } from "@/lib/api";
-import { brandSchema } from "@/lib/schemas";
 
 export async function GET() {
   try {
     const brands = await prisma.brand.findMany({ orderBy: { name: "asc" } });
-    return NextResponse.json(brands);
+    return apiData(brands);
   } catch (error) {
     return handleApiError(error, "brands.GET");
   }
@@ -22,17 +21,18 @@ export async function POST(request: Request) {
       ? await request.json()
       : { name: (await request.formData()).get("name") };
     const data = brandSchema.parse(raw);
-    const slug = data.name.toLowerCase().replace(/\s+/g, "-");
+    const slug = slugifyName(data.name);
 
     const existingBrand = await prisma.brand.findUnique({ where: { slug } });
     if (existingBrand) {
-      return NextResponse.json({ error: "Marca já cadastrada." }, { status: 409 });
+      return conflictError("Marca ja cadastrada.");
     }
 
     const brand = await prisma.brand.create({
       data: { name: data.name, slug },
+      select: { id: true, name: true, slug: true },
     });
-    return NextResponse.json(brand, { status: 201 });
+    return apiCreated(brand);
   } catch (error) {
     return handleApiError(error, "brands.POST");
   }

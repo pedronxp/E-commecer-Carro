@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   createSessionPayload,
+  getExpiredSessionCookieOptions,
+  getSessionCookieOptions,
   validateLoginInput,
   validateRegisterInput,
 } from "./auth";
@@ -87,5 +89,41 @@ describe("session payload", () => {
       role: "USER",
     });
     expect(payload).not.toHaveProperty("password");
+  });
+});
+
+describe("session cookie options", () => {
+  it("keeps localhost cookies usable over HTTP", () => {
+    const options = getSessionCookieOptions(new Request("http://localhost:3000/api/auth/login"));
+
+    expect(options).toMatchObject({
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      path: "/",
+      priority: "high",
+    });
+    expect(options.maxAge).toBeGreaterThan(0);
+  });
+
+  it("uses secure cookies for HTTPS requests behind a proxy", () => {
+    const options = getSessionCookieOptions(
+      new Request("http://app.local/api/auth/login", {
+        headers: {
+          host: "admin.limaautomoveis.com.br",
+          "x-forwarded-proto": "https",
+        },
+      }),
+    );
+
+    expect(options.secure).toBe(true);
+  });
+
+  it("expires the session cookie with the same base policy", () => {
+    const options = getExpiredSessionCookieOptions(new Request("http://localhost:3000/api/auth/logout"));
+
+    expect(options.secure).toBe(false);
+    expect(options.maxAge).toBe(0);
+    expect(options.expires?.getTime()).toBe(0);
   });
 });

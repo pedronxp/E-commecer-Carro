@@ -1,12 +1,11 @@
-import { NextResponse } from "next/server";
+import { apiCreated, apiData, conflictError, handleApiError, requireInternalAccess } from "@/lib/api";
+import { categorySchema, slugifyName } from "@/lib/schemas";
 import { prisma } from "@/lib/prisma";
-import { requireInternalAccess, handleApiError } from "@/lib/api";
-import { categorySchema } from "@/lib/schemas";
 
 export async function GET() {
   try {
     const categories = await prisma.category.findMany({ orderBy: { name: "asc" } });
-    return NextResponse.json(categories);
+    return apiData(categories);
   } catch (error) {
     return handleApiError(error, "categories.GET");
   }
@@ -22,17 +21,18 @@ export async function POST(request: Request) {
       ? await request.json()
       : { name: (await request.formData()).get("name") };
     const data = categorySchema.parse(raw);
-    const slug = data.name.toLowerCase().replace(/\s+/g, "-");
+    const slug = slugifyName(data.name);
 
     const existingCategory = await prisma.category.findUnique({ where: { slug } });
     if (existingCategory) {
-      return NextResponse.json({ error: "Categoria já cadastrada." }, { status: 409 });
+      return conflictError("Categoria ja cadastrada.");
     }
 
     const category = await prisma.category.create({
       data: { name: data.name, slug },
+      select: { id: true, name: true, slug: true },
     });
-    return NextResponse.json(category, { status: 201 });
+    return apiCreated(category);
   } catch (error) {
     return handleApiError(error, "categories.POST");
   }

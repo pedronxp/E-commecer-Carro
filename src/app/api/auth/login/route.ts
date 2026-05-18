@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 
 import {
+  getSessionCookieOptions,
   SESSION_COOKIE_NAME,
-  SESSION_MAX_AGE_SECONDS,
   signSessionToken,
   validateLoginInput,
   verifyPassword,
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     };
     const token = await signSessionToken(safeUser);
     const response = NextResponse.json({ user: safeUser });
-    response.cookies.set(SESSION_COOKIE_NAME, token, getSessionCookieOptions());
+    response.cookies.set(SESSION_COOKIE_NAME, token, getSessionCookieOptions(request));
 
     return response;
   } catch (error) {
@@ -67,14 +67,4 @@ async function readJson(request: Request): Promise<unknown> {
   } catch {
     return null;
   }
-}
-
-function getSessionCookieOptions() {
-  return {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict" as const,
-    path: "/",
-    maxAge: SESSION_MAX_AGE_SECONDS,
-  };
 }

@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { handleApiError } from "@/lib/api";
+import { apiCreated, handleApiError, validationError } from "@/lib/api";
 import { parseSellLeadInput } from "@/lib/schemas";
 
 export const dynamic = "force-dynamic";
@@ -10,10 +9,7 @@ export async function POST(request: Request) {
     const parsed = parseSellLeadInput(await readJson(request));
 
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Lead comercial invalido.", details: parsed.error.flatten() },
-        { status: 400 },
-      );
+      return validationError("Lead comercial invalido.", parsed.error.flatten());
     }
 
     const input = parsed.data;
@@ -56,7 +52,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({ id: lead.id }, { status: 201 });
+    return apiCreated({ id: lead.id });
   } catch (error) {
     return handleApiError(error, "sales-leads.POST");
   }

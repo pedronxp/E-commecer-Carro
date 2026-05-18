@@ -1,14 +1,13 @@
-import { NextResponse } from "next/server";
+import { apiData, apiDeleted, conflictError, handleApiError, notFoundError, requireInternalAccess } from "@/lib/api";
+import { brandSchema, slugifyName } from "@/lib/schemas";
 import { prisma } from "@/lib/prisma";
-import { requireInternalAccess, handleApiError } from "@/lib/api";
-import { brandSchema } from "@/lib/schemas";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const brand = await prisma.brand.findUnique({ where: { id } });
-    if (!brand) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    return NextResponse.json(brand);
+    if (!brand) return notFoundError();
+    return apiData(brand);
   } catch (error) {
     return handleApiError(error, "brands.[id].GET");
   }
@@ -17,15 +16,22 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireInternalAccess();
   if ("error" in auth) return auth.error;
+
   try {
     const { id } = await params;
-    const json = await request.json();
-    const data = brandSchema.parse(json);
+    const data = brandSchema.parse(await request.json());
+    const slug = slugifyName(data.name);
+    const existingBrand = await prisma.brand.findUnique({ where: { slug } });
+
+    if (existingBrand && existingBrand.id !== id) {
+      return conflictError("Marca ja cadastrada.");
+    }
+
     const brand = await prisma.brand.update({
       where: { id },
-      data: { name: data.name, slug: data.name.toLowerCase().replace(/\s+/g, "-") },
+      data: { name: data.name, slug },
     });
-    return NextResponse.json(brand);
+    return apiData(brand);
   } catch (error) {
     return handleApiError(error, "brands.[id].PUT");
   }
@@ -34,10 +40,21 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireInternalAccess();
   if ("error" in auth) return auth.error;
+
   try {
     const { id } = await params;
+    const brand = await prisma.brand.findUnique({
+      where: { id },
+      include: { _count: { select: { cars: true } } },
+    });
+
+    if (!brand) return notFoundError();
+    if (brand._count.cars > 0) {
+      return conflictError("Esta marca possui veiculos vinculados.");
+    }
+
     await prisma.brand.delete({ where: { id } });
-    return NextResponse.json({ message: "Deleted" });
+    return apiDeleted();
   } catch (error) {
     return handleApiError(error, "brands.[id].DELETE");
   }
