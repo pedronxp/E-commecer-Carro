@@ -143,8 +143,8 @@ export default async function AdminUsersPage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-2">
+      <section className="admin-hero-panel rounded-xl p-6 shadow-sm">
+        <div className="relative z-[1] flex flex-col gap-2">
           <p className="text-sm font-semibold uppercase tracking-[0.14em] text-emerald-700">Seguranca interna</p>
           <h1 className="text-2xl font-black text-slate-950">Operadores do painel</h1>
           <p className="max-w-2xl text-sm leading-6 text-slate-500">
@@ -159,7 +159,7 @@ export default async function AdminUsersPage() {
         <SummaryCard icon={UserRound} label="Operadores" value={operatorCount} />
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="admin-command-bar rounded-xl p-5">
         <div className="mb-4 flex items-start gap-3">
           <div className="rounded-xl bg-emerald-50 p-3 text-emerald-700">
             <Plus className="h-5 w-5" />
@@ -186,7 +186,7 @@ export default async function AdminUsersPage() {
         </form>
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <section className="admin-panel rounded-xl bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <div>
             <h2 className="font-semibold text-slate-950">Operadores</h2>
@@ -305,7 +305,7 @@ function SummaryCard({
   value: number;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="admin-kpi-card rounded-xl p-5">
       <div className="flex items-center gap-3">
         <div className="rounded-xl bg-emerald-50 p-3 text-emerald-700">
           <Icon className="h-5 w-5" />

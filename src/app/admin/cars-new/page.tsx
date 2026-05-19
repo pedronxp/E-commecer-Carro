@@ -147,13 +147,13 @@ export default async function AdminCarsNewPage() {
 
   return (
     <div>
-      <div className="mb-6 rounded-lg border border-border bg-white p-6 shadow-sm">
+      <section className="admin-hero-panel mb-6 rounded-xl p-6 shadow-sm">
         <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary-dark">Entrada de estoque</p>
         <h1 className="mt-2 text-2xl font-black text-slate-950">Novo veiculo</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
           Cadastre os dados publicos do anuncio e os parametros internos de preco, margem e operacao antes de publicar na vitrine.
         </p>
-      </div>
+      </section>
       <CarForm action={createCar} brands={brands} categories={categories} />
     </div>
   );

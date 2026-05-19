@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireInternalAccess } from "@/lib/api";
 import { findFipexEstimate } from "@/lib/fipe-provider";
+import { buildMarketLiquidityInsight } from "@/lib/market-liquidity";
 import { buildPriceDecision, buildPriceGuidance, normalizePriceCondition, normalizeTargetMargin, parseMoneyText } from "@/lib/price-comparison";
 import { buildPriceInsightSearchFilters, normalizeSearchText, scoreLocalPriceCandidate } from "@/lib/price-insight-filters";
+import { buildMarketContext, getRecommendationReportModeOption } from "@/lib/pricing-report";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +20,17 @@ export async function GET(request: Request) {
   const safeVehicleType = isVehicleType(vehicleType) ? vehicleType : "CAR";
   const conditionKey = normalizePriceCondition(searchParams.get("condition"));
   const targetMargin = normalizeTargetMargin(searchParams.get("targetMargin"));
+  const marketContext = buildMarketContext(searchParams.get("marketUf") ?? searchParams.get("compareMarketUf"));
+  const reportMode = getRecommendationReportModeOption(searchParams.get("reportMode") ?? searchParams.get("compareReportMode"));
+  const marketResponse = {
+    marketUf: marketContext.requestedUf,
+    marketLabel: marketContext.label,
+    marketPricingScope: marketContext.pricingScope,
+    regionalPricingAvailable: marketContext.regionalPricingAvailable,
+    regionalProviderStatus: marketContext.regionalProviderStatus,
+    regionalPriceSource: marketContext.regionalPriceSource,
+    regionalPricingNote: marketContext.note,
+  };
   const modelId = normalizeOptional(searchParams.get("modelId") ?? searchParams.get("compareModelId"));
   const modelSlug = normalizeOptional(searchParams.get("modelSlug") ?? searchParams.get("compareModelSlug"));
   const fuelId = normalizeOptional(searchParams.get("fuelId") ?? searchParams.get("compareFuelId"));
@@ -39,6 +52,8 @@ export async function GET(request: Request) {
     targetMargin,
     purchasePrice,
     currentPrice,
+    marketContext,
+    reportMode: reportMode.value,
     tokens,
     priceFilters: {
       yearWindow,
@@ -54,6 +69,17 @@ export async function GET(request: Request) {
   };
   const manualDecision = buildPriceDecision({ purchasePrice, currentPrice, targetMargin, conditionKey });
   const manualGuidance = buildPriceGuidance(manualDecision);
+  const manualMarketLiquidity = buildMarketLiquidityInsight({
+    marketUf: marketContext.requestedUf ?? "",
+    vehicleType: safeVehicleType,
+    referencePrice: currentPrice,
+    adjustedFipe: manualDecision.adjustedFipe,
+    suggestedPrice: manualDecision.suggestedPrice,
+    purchasePrice,
+    maxRecommendedPurchasePrice: manualDecision.maxRecommendedPurchasePrice,
+    targetMargin,
+    localSampleCount: 0,
+  });
 
   if (vehicleType === "ELECTRIC_BIKE") {
     return NextResponse.json({
@@ -67,6 +93,10 @@ export async function GET(request: Request) {
       fallbackReason: "Tipo de veiculo sem cobertura FIPE automatica neste fluxo.",
       externalProviderConfigured: false,
       providerStatus: "manual",
+      marketContext,
+      reportMode,
+      marketLiquidity: manualMarketLiquidity,
+      ...marketResponse,
       parameters,
       matches: [],
     });
@@ -84,6 +114,10 @@ export async function GET(request: Request) {
       fallbackReason: "Titulo insuficiente para consulta automatica.",
       externalProviderConfigured: false,
       providerStatus: "manual",
+      marketContext,
+      reportMode,
+      marketLiquidity: manualMarketLiquidity,
+      ...marketResponse,
       parameters,
       matches: [],
     });
@@ -146,6 +180,23 @@ export async function GET(request: Request) {
     conditionKey,
   });
   const guidance = buildPriceGuidance(decision);
+  const fipeSpreadPercent = externalEstimate?.history
+    ? getHistorySpreadPercent(externalEstimate.history.map((point) => point.price))
+    : null;
+  const trendTone = externalEstimate?.history ? getHistoryTrendTone(externalEstimate.history.map((point) => point.price)) : undefined;
+  const marketLiquidity = buildMarketLiquidityInsight({
+    marketUf: marketContext.requestedUf ?? "",
+    vehicleType: safeVehicleType,
+    referencePrice: fipeEstimate,
+    adjustedFipe: decision.adjustedFipe,
+    suggestedPrice: decision.suggestedPrice,
+    purchasePrice,
+    maxRecommendedPurchasePrice: decision.maxRecommendedPurchasePrice,
+    targetMargin,
+    trendTone,
+    fipeSpreadPercent,
+    localSampleCount: scored.length,
+  });
   const fallbackReason = externalEstimate
     ? null
     : localFipeEstimate
@@ -167,6 +218,10 @@ export async function GET(request: Request) {
     fallbackReason,
     externalProviderConfigured: Boolean(externalEstimate),
     providerStatus: externalEstimate ? "provider" : localFipeEstimate ? "local-fallback" : "manual",
+    marketContext,
+    reportMode,
+    marketLiquidity,
+    ...marketResponse,
     parameters,
     externalEstimate,
     matches: scored.map(({ vehicle, score, tokenMatches, requiredTokenMatches, yearDistance }) => ({
@@ -205,6 +260,29 @@ function scoreVehicle(title: string, tokens: string[], targetYear: number | null
 function average(values: number[]): number | null {
   if (values.length === 0) return null;
   return Math.round(values.reduce((total, value) => total + value, 0) / values.length);
+}
+
+function getHistorySpreadPercent(values: number[]): number | null {
+  const validValues = values.filter((value) => Number.isFinite(value) && value > 0);
+  if (validValues.length < 2) return null;
+
+  const min = Math.min(...validValues);
+  const max = Math.max(...validValues);
+  if (min <= 0 || max <= min) return null;
+
+  return Math.round(((max - min) / min) * 100);
+}
+
+function getHistoryTrendTone(values: number[]): "default" | "success" | "danger" | "warning" {
+  const validValues = values.filter((value) => Number.isFinite(value) && value > 0);
+  if (validValues.length < 2) return "warning";
+
+  const first = validValues[0];
+  const last = validValues[validValues.length - 1];
+  const percent = Math.round(((last - first) / first) * 100);
+
+  if (Math.abs(percent) <= 2) return "default";
+  return percent > 0 ? "success" : "danger";
 }
 
 function isVehicleType(value: string): value is "CAR" | "MOTORCYCLE" {

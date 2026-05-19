@@ -114,35 +114,35 @@ export function AdminOperatorStatus({
 
   return (
     <>
-      <div className="pointer-events-auto absolute left-1/2 top-1/2 hidden max-w-[46vw] -translate-x-1/2 -translate-y-1/2 items-center gap-2 overflow-hidden rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 shadow-sm md:flex xl:gap-3">
+      <div className="admin-operator-pill pointer-events-auto absolute left-1/2 top-1/2 hidden max-w-[46vw] -translate-x-1/2 -translate-y-1/2 items-center gap-2 overflow-hidden rounded-full px-3 py-2 text-xs font-semibold md:flex xl:gap-3">
         <span className="inline-flex items-center gap-1.5">
-          <Clock3 className="h-3.5 w-3.5 text-emerald-600" />
+          <Clock3 className="h-3.5 w-3.5 text-emerald-700" />
           {time}
         </span>
         <button
           type="button"
           onClick={requestLocation}
-          className="inline-flex items-center gap-1.5 text-left transition hover:text-emerald-700"
+          className="inline-flex items-center gap-1.5 text-left transition hover:text-emerald-800"
           title="Mostrar cidade e estado deste navegador"
         >
-          <LocateFixed className="h-3.5 w-3.5 text-emerald-600" />
+          <LocateFixed className="h-3.5 w-3.5 text-emerald-700" />
           <span className="max-w-28 truncate xl:max-w-36">{locationLoading ? "Localizando..." : locationLabel}</span>
         </button>
         <span className="inline-flex items-center gap-1.5">
-          <Network className="h-3.5 w-3.5 text-emerald-600" />
+          <Network className="h-3.5 w-3.5 text-emerald-700" />
           <span className="max-w-28 truncate">{ipAddress}</span>
         </span>
       </div>
 
       <div className="ml-auto flex items-center justify-end gap-3">
         <div className="hidden text-right xl:block">
-          <p className="text-sm font-semibold text-slate-950">{identityVisible ? user.name : "Operador"}</p>
-          <p className="text-xs text-slate-500">{identityVisible ? user.email : maskEmail(user.email)}</p>
+          <p className="text-sm font-bold text-slate-900">{identityVisible ? user.name : "Operador"}</p>
+          <p className="text-xs font-medium text-stone-600">{identityVisible ? user.email : maskEmail(user.email)}</p>
         </div>
         <button
           type="button"
           onClick={toggleIdentity}
-          className="hidden rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900 xl:inline-flex"
+          className="admin-topbar-button hidden rounded-lg border p-2 transition xl:inline-flex"
           title={identityVisible ? "Ocultar dados do operador" : "Mostrar dados do operador"}
         >
           {identityVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -151,7 +151,7 @@ export function AdminOperatorStatus({
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="group relative h-10 w-10 overflow-hidden rounded-full border border-slate-200 bg-emerald-50 text-sm font-semibold text-emerald-700"
+          className="group relative h-10 w-10 overflow-hidden rounded-full border border-emerald-600/35 bg-emerald-700 text-sm font-bold text-white shadow-sm shadow-emerald-900/10"
           title="Adicionar foto do operador"
         >
           {avatar ? (
@@ -168,7 +168,7 @@ export function AdminOperatorStatus({
 
         <button
           onClick={onLogout}
-          className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+          className="rounded-lg p-2 text-stone-600 transition hover:bg-red-50 hover:text-red-700"
           title="Sair"
         >
           <LogOut className="h-5 w-5" />
