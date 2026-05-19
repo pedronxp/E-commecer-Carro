@@ -67,7 +67,7 @@ export default function AdminShell({
   }
 
   return (
-    <div className="flex min-h-screen bg-[linear-gradient(180deg,var(--background),white)] text-foreground">
+    <div className="admin-workspace flex min-h-screen text-foreground">
       {sidebarOpen ? (
         <button
           type="button"
@@ -78,11 +78,11 @@ export default function AdminShell({
       ) : null}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 border-r border-slate-800/80 bg-slate-950 text-slate-100 shadow-xl shadow-slate-950/20 transition-all duration-200 md:translate-x-0 ${
-          sidebarCollapsed ? "w-20" : "w-[17rem]"
+        className={`admin-sidebar fixed inset-y-0 left-0 z-40 border-r text-slate-100 transition-all duration-200 md:translate-x-0 ${
+          sidebarCollapsed ? "w-20" : "w-[min(17rem,calc(100vw-1rem))]"
         } ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
-        <div className={`border-b border-white/10 ${sidebarCollapsed ? "px-3 py-4" : "p-4"}`}>
+        <div className={`admin-sidebar-header border-b ${sidebarCollapsed ? "px-3 py-4" : "p-4"}`}>
           <div className={sidebarCollapsed ? "flex flex-col items-center gap-3" : "flex items-center gap-3"}>
             <Link
               href="/admin"
@@ -95,9 +95,9 @@ export default function AdminShell({
               </span>
               {!sidebarCollapsed ? (
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-black tracking-tight text-white">Lima Automoveis</span>
-                  <span className="mt-0.5 block truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-primary-light">
-                    Gestao da loja
+                  <span className="admin-sidebar-title block truncate text-sm font-black">Lima Automóveis</span>
+                  <span className="admin-sidebar-subtitle mt-0.5 block truncate text-[11px] font-semibold uppercase tracking-[0.16em]">
+                    Gestão da loja
                   </span>
                 </span>
               ) : null}
@@ -116,10 +116,10 @@ export default function AdminShell({
                 onClick={() => setSidebarOpen(false)}
                 title={sidebarCollapsed ? item.label : undefined}
                 aria-current={isActive ? "page" : undefined}
-                className={`flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition ${
+                className={`admin-sidebar-link flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition ${
                   isActive
-                    ? "bg-primary text-white shadow-sm shadow-primary/20"
-                    : "text-slate-400 hover:bg-white/10 hover:text-white"
+                    ? "admin-sidebar-link-active"
+                    : ""
                 } ${sidebarCollapsed ? "justify-center" : ""}`}
               >
                 <Icon className="h-5 w-5 shrink-0" />
@@ -134,26 +134,26 @@ export default function AdminShell({
         className={`min-w-0 flex-1 transition-all duration-200 ${sidebarCollapsed ? "md:ml-20" : "md:ml-[17rem]"}`}
         onPointerDown={handleContentPointerDown}
       >
-        <header className="sticky top-0 z-10 flex min-h-16 items-center border-b border-border bg-white/90 px-4 py-3 backdrop-blur sm:px-6">
+        <header className="admin-topbar sticky top-0 z-10 flex min-h-16 items-center px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-3 pr-4">
             <button
               type="button"
               onPointerDown={(event) => event.stopPropagation()}
               onClick={handleMenuToggle}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border text-muted transition-colors hover:bg-surface hover:text-foreground"
+              className="admin-topbar-button inline-flex h-10 w-10 items-center justify-center rounded-lg border transition-colors"
               title={sidebarCollapsed ? "Abrir menu" : "Recolher menu"}
             >
               <Menu className="h-5 w-5" />
             </button>
             <div className="min-w-0">
-              <p className="hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-muted sm:block">Admin</p>
-              <h1 className="truncate text-lg font-semibold text-foreground">{pageTitle}</h1>
+              <p className="admin-topbar-kicker hidden sm:block">Painel admin</p>
+              <h1 className="admin-topbar-title truncate text-lg">{pageTitle}</h1>
             </div>
           </div>
           <AdminOperatorStatus user={user} ipAddress={ipAddress} city={city} onLogout={handleLogout} />
         </header>
 
-        <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+        <main className="admin-main-surface p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );

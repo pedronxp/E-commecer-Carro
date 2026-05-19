@@ -5,24 +5,24 @@ import { useEffect, useState } from "react";
 
 const guideSteps = [
   {
-    title: "1. Filtros do estoque",
-    body: "Recalcula somente KPIs e lista de veículos cadastrados.",
+    title: "1. Referencia FIPE",
+    body: "Digite o modelo, selecione a sugestao FIPE/FipeX e confirme ano-modelo, combustivel e preco atual.",
   },
   {
-    title: "2. Comparativo avulso",
-    body: "Digite o modelo, selecione a sugestão e clique em Comparar.",
+    title: "2. Conservacao",
+    body: "Escolha o estado real do veiculo para aplicar o ajuste comercial sobre a FIPE. Isso nao e filtro por UF.",
   },
   {
-    title: "3. Custo e FIPE",
-    body: "Custo é o valor pago. Preço atual FIPE vem da sugestão.",
+    title: "3. Margem e compra",
+    body: "Informe margem minima e valor de compra da loja para calcular o teto recomendado antes do cadastro.",
   },
   {
-    title: "4. Ler a decisão",
-    body: "Confira FIPE ajustada, preço sugerido, lucro, margem, fonte e match.",
+    title: "4. Ler a decisao",
+    body: "Confira FIPE ajustada, teto de compra, preco sugerido, lucro, margem, fonte e match.",
   },
   {
-    title: "5. Comparativo do estoque",
-    body: "Compare venda atual, preço sugerido, custo, margem e desconto contra FIPE.",
+    title: "5. Grafico e fonte",
+    body: "Use historico, tendencia e qualidade da referencia como apoio. FIPE/FipeX atual nao filtra por UF.",
   },
 ] as const;
 
@@ -90,10 +90,10 @@ export function PromotionGuideDialog() {
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-[0.14em] text-emerald-700">Guia rápido</p>
                   <h2 id="promotions-guide-title" className="mt-2 text-2xl font-black text-slate-950">
-                    Comparativo FIPE
+                    Precificador sem cadastro
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    A página separa dois caminhos: filtros do estoque cadastrado e simulação avulsa antes de criar um cadastro.
+                    A pagina foi focada na simulacao de compra antes de criar um cadastro no estoque.
                   </p>
                 </div>
                 <button
@@ -198,17 +198,17 @@ function GuideIllustration({ activeStep }: { activeStep: number }) {
       <rect x="66" y="67" width="116" height="20" rx="6" fill={active(0) ? "#047857" : "#cbd5e1"} />
       <rect x="202" y="67" width="116" height="20" rx="6" fill={active(0) ? "#0f766e" : "#cbd5e1"} />
       <rect x="338" y="67" width="116" height="20" rx="6" fill={active(0) ? "#065f46" : "#cbd5e1"} />
-      <text x="78" y="82" fill="#ffffff" fontSize="11" fontWeight="800">Visao</text>
-      <text x="214" y="82" fill="#ffffff" fontSize="11" fontWeight="800">Estado</text>
+      <text x="78" y="82" fill="#ffffff" fontSize="11" fontWeight="800">FIPE</text>
+      <text x="214" y="82" fill="#ffffff" fontSize="11" fontWeight="800">Conserv.</text>
       <text x="350" y="82" fill="#ffffff" fontSize="11" fontWeight="800">Margem</text>
 
       <rect x="44" y="130" width="224" height="118" rx="14" fill={active(1) || active(2) ? "#ecfdf5" : "#f8fafc"} stroke={active(1) || active(2) ? "#10b981" : "#cbd5e1"} strokeWidth="2" />
-      <text x="66" y="154" fill="#0f172a" fontSize="13" fontWeight="800">Comparar sem cadastrar</text>
+      <text x="66" y="154" fill="#0f172a" fontSize="13" fontWeight="800">Simular sem cadastro</text>
       <rect x="66" y="170" width="164" height="20" rx="6" fill={active(1) ? "#047857" : "#cbd5e1"} />
       <text x="78" y="184" fill="#ffffff" fontSize="10" fontWeight="800">Honda Civic...</text>
       <rect x="66" y="197" width="78" height="16" rx="5" fill={active(2) ? "#0f766e" : "#cbd5e1"} />
       <rect x="154" y="197" width="76" height="16" rx="5" fill={active(2) ? "#0f766e" : "#cbd5e1"} />
-      <text x="74" y="209" fill="#ffffff" fontSize="9" fontWeight="800">Custo</text>
+      <text x="74" y="209" fill="#ffffff" fontSize="9" fontWeight="800">Compra</text>
       <text x="164" y="209" fill="#ffffff" fontSize="9" fontWeight="800">Preco</text>
       <rect x="66" y="224" width="74" height="14" rx="7" fill={active(1) ? "#d1fae5" : "#e2e8f0"} />
       <rect x="150" y="224" width="90" height="14" rx="7" fill={active(1) ? "#d1fae5" : "#e2e8f0"} />
@@ -226,7 +226,7 @@ function GuideIllustration({ activeStep }: { activeStep: number }) {
       <rect x="114" y="284" width="74" height="12" rx="6" fill="#ffffff" opacity={active(4) ? "1" : "0.65"} />
       <rect x="204" y="284" width="74" height="12" rx="6" fill="#ffffff" opacity={active(4) ? "1" : "0.65"} />
       <rect x="294" y="284" width="74" height="12" rx="6" fill="#ffffff" opacity={active(4) ? "1" : "0.65"} />
-      <text x="194" y="326" fill="#475569" fontSize="12" fontWeight="800">Estoque cadastrado</text>
+      <text x="194" y="326" fill="#475569" fontSize="12" fontWeight="800">Recomendacao gerada</text>
     </svg>
   );
 }

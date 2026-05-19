@@ -67,8 +67,8 @@ export default async function AdminTaxonomyPage({ params }: { params: Promise<{ 
 
   return (
     <div className="space-y-6">
-      <section className="rounded-lg border border-border bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <section className="admin-hero-panel rounded-xl p-6 shadow-sm">
+        <div className="relative z-[1] flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex items-start gap-3">
             <div className="rounded-lg bg-primary-light p-3 text-primary-dark">
               <Icon className="h-5 w-5" />
@@ -87,7 +87,7 @@ export default async function AdminTaxonomyPage({ params }: { params: Promise<{ 
         </div>
       </section>
 
-      <section className="rounded-lg border border-border bg-white p-4 shadow-sm">
+      <section className="admin-command-bar rounded-xl p-4">
         <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="font-semibold text-slate-950">{config.createTitle}</h2>
@@ -120,7 +120,7 @@ export default async function AdminTaxonomyPage({ params }: { params: Promise<{ 
         </form>
       </section>
 
-      <section className="overflow-hidden rounded-lg border border-border bg-white shadow-sm">
+      <section className="admin-panel overflow-hidden rounded-xl bg-white shadow-sm">
         {items.length === 0 ? (
           <div className="px-6 py-12 text-center text-slate-500">
             <Icon className="mx-auto mb-4 h-14 w-14 text-slate-300" />

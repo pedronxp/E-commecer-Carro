@@ -1,11 +1,70 @@
 export const priceConditionAdjustments = {
-  excellent: { label: "Excelente", factor: 1.03 },
-  good: { label: "Bom", factor: 1 },
-  attention: { label: "Com detalhes", factor: 0.95 },
-  repair: { label: "Precisa reparos", factor: 0.9 },
+  excellent: {
+    label: "Excelente",
+    factor: 1.03,
+    optionLabel: "Excelente (+3%)",
+    decisionLabel: "FIPE com valorizacao por excelente estado",
+    description: "Veiculo acima da media, com baixa necessidade de preparo e maior poder de negociacao.",
+    effect: "Aumenta a referencia FIPE em 3%.",
+  },
+  good: {
+    label: "Bom",
+    factor: 1,
+    optionLabel: "Bom / sem ajuste",
+    decisionLabel: "FIPE sem ajuste de conservacao",
+    description: "Estado comercial normal para anuncio, sem premio nem desconto sobre a referencia FIPE.",
+    effect: "Mantem a FIPE original.",
+  },
+  attention: {
+    label: "Com detalhes",
+    factor: 0.95,
+    optionLabel: "Com detalhes (-5%)",
+    decisionLabel: "FIPE ajustada por detalhes",
+    description: "Pequenos reparos, estetica ou revisao podem reduzir o teto de compra.",
+    effect: "Reduz a referencia FIPE em 5%.",
+  },
+  repair: {
+    label: "Precisa reparos",
+    factor: 0.9,
+    optionLabel: "Precisa reparos (-10%)",
+    decisionLabel: "FIPE ajustada por reparos",
+    description: "Reparos relevantes exigem cautela no valor de entrada para preservar margem.",
+    effect: "Reduz a referencia FIPE em 10%.",
+  },
 } as const;
 
 export type PriceConditionKey = keyof typeof priceConditionAdjustments;
+export type PriceConditionOptionKey = PriceConditionKey | "";
+
+export const defaultPriceConditionOption = {
+  key: "" as const,
+  label: "Sem ajuste",
+  factor: 1,
+  optionLabel: "Sem ajuste",
+  decisionLabel: "FIPE sem ajuste informado",
+  description: "Use quando a conservacao ainda nao foi avaliada. O calculo usa a FIPE original.",
+  effect: "Mantem a FIPE original ate existir avaliacao real.",
+};
+
+export const priceConditionSelectOptions: Array<{
+  key: PriceConditionOptionKey;
+  label: string;
+  factor: number;
+  optionLabel: string;
+  decisionLabel: string;
+  description: string;
+  effect: string;
+}> = [
+  defaultPriceConditionOption,
+  ...Object.entries(priceConditionAdjustments).map(([key, value]) => ({
+    key: key as PriceConditionKey,
+    ...value,
+  })),
+];
+
+export function getPriceConditionOption(value?: string | null) {
+  return priceConditionSelectOptions.find((option) => option.key === (value ?? "")) ?? defaultPriceConditionOption;
+}
 
 export type PriceDecision = {
   conditionKey: PriceConditionKey;
@@ -17,9 +76,13 @@ export type PriceDecision = {
   suggestedByMargin: number | null;
   suggestedByCurrentPrice: number | null;
   suggestedPrice: number | null;
+  purchasePrice: number | null;
   grossMargin: number | null;
   marginPercent: number | null;
   discountPercent: number;
+  recommendedPurchaseReferencePrice: number | null;
+  maxRecommendedPurchasePrice: number | null;
+  purchaseExceedsRecommendedPrice: boolean;
   basis: Array<"fipe" | "margin" | "current-price">;
   hasDecision: boolean;
 };
@@ -85,6 +148,15 @@ export function buildPriceDecision({
     adjustedFipe !== null && suggestedPrice !== null && adjustedFipe > suggestedPrice
       ? Math.round(((adjustedFipe - suggestedPrice) / adjustedFipe) * 100)
       : 0;
+  const recommendedPurchaseReferencePrice = adjustedFipe ?? suggestedByCurrentPrice;
+  const maxRecommendedPurchasePrice =
+    recommendedPurchaseReferencePrice !== null && safeTargetMargin < 100
+      ? Math.round(recommendedPurchaseReferencePrice * (1 - safeTargetMargin / 100))
+      : null;
+  const purchaseExceedsRecommendedPrice =
+    safePurchasePrice !== null &&
+    maxRecommendedPurchasePrice !== null &&
+    safePurchasePrice > maxRecommendedPurchasePrice;
 
   return {
     conditionKey,
@@ -96,9 +168,13 @@ export function buildPriceDecision({
     suggestedByMargin,
     suggestedByCurrentPrice,
     suggestedPrice,
+    purchasePrice: safePurchasePrice,
     grossMargin,
     marginPercent,
     discountPercent,
+    recommendedPurchaseReferencePrice,
+    maxRecommendedPurchasePrice,
+    purchaseExceedsRecommendedPrice,
     basis,
     hasDecision: suggestedPrice !== null,
   };
@@ -112,27 +188,45 @@ export function buildPriceGuidance(decision: PriceDecision): PriceGuidance {
   }
 
   if (!decision.suggestedByMargin) {
-    suggestions.push("Informe o valor que pretende pagar para calcular lucro bruto e margem real.");
+    suggestions.push("Informe o valor de compra da loja para calcular lucro bruto e margem real.");
   }
 
   if (!decision.hasDecision) {
     return {
       tone: "warning",
       title: "Dados insuficientes para recomendar preço",
-      detail: "O sistema precisa de FIPE, preço atual informado ou valor pretendido de compra para montar uma decisão.",
+      detail: "O sistema precisa de FIPE, preço atual informado ou valor de compra da loja para montar uma decisão.",
+      suggestions,
+    };
+  }
+
+  if (decision.purchaseExceedsRecommendedPrice && decision.maxRecommendedPurchasePrice && decision.purchasePrice) {
+    const excess = decision.purchasePrice - decision.maxRecommendedPurchasePrice;
+    suggestions.push(
+      `Negocie a compra ate ${formatCurrencyForGuidance(decision.maxRecommendedPurchasePrice)} ou trate ${formatCurrencyForGuidance(excess)} como risco acima do teto.`,
+    );
+
+    if (decision.suggestedByMargin) {
+      suggestions.push(
+        `Para preservar ${decision.targetMargin}% com esse custo, o anuncio minimo sobe para ${formatCurrencyForGuidance(decision.suggestedByMargin)}.`,
+      );
+    }
+
+    return {
+      tone: "danger",
+      title: "Compra acima do teto recomendado",
+      detail: `O valor de compra da loja ultrapassa o teto calculado pela referencia FIPE/conservacao e margem minima de ${decision.targetMargin}%.`,
       suggestions,
     };
   }
 
   if (decision.grossMargin !== null && decision.marginPercent !== null && decision.marginPercent < decision.targetMargin) {
-    const maxIntendedPayment = decision.suggestedPrice
-      ? Math.round(decision.suggestedPrice * (1 - decision.targetMargin / 100))
-      : null;
+    const maxIntendedPayment = decision.maxRecommendedPurchasePrice;
 
     suggestions.push(
       maxIntendedPayment
-        ? `Para manter ${decision.targetMargin}% de margem neste preço, tente pagar no máximo ${formatCurrencyForGuidance(maxIntendedPayment)}.`
-        : "Revise o valor pretendido de compra ou aumente o preço sugerido.",
+        ? `Para manter ${decision.targetMargin}% de margem neste preco, negocie a compra ate ${formatCurrencyForGuidance(maxIntendedPayment)} ou ajuste a estrategia de anuncio.`
+        : "Revise o valor de compra da loja ou aumente o preco sugerido.",
     );
 
     return {
@@ -152,12 +246,12 @@ export function buildPriceGuidance(decision: PriceDecision): PriceGuidance {
     };
   }
 
-  suggestions.push("Use o preço sugerido como referência inicial e confirme a FIPE oficial antes de fechar a negociação.");
+  suggestions.push("Use o preco sugerido como referencia inicial de anuncio e confirme a FIPE oficial antes de fechar a negociacao.");
 
   return {
     tone: "success",
     title: "Decisão consistente",
-    detail: `Preço sugerido cobre a meta de ${decision.targetMargin}% quando o valor pretendido de compra está correto.`,
+    detail: `Preco sugerido cobre a meta de ${decision.targetMargin}% quando o valor de compra da loja esta correto.`,
     suggestions,
   };
 }

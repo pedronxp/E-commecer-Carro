@@ -155,8 +155,8 @@ export default async function AdminPage({
 
   return (
     <div className="space-y-5">
-      <section className="rounded-xl border border-border bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+      <section className="admin-hero-panel rounded-xl p-5 shadow-sm sm:p-6">
+        <div className="relative z-[1] flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Operação comercial</p>
             <h1 className="mt-2 text-2xl font-black tracking-tight text-foreground sm:text-3xl">Gestão comercial da loja</h1>
@@ -183,7 +183,7 @@ export default async function AdminPage({
         </div>
       </section>
 
-      <form className="rounded-xl border border-border bg-white p-4 shadow-sm">
+      <form className="admin-command-bar rounded-xl p-4">
         <div className="grid gap-3 md:grid-cols-6">
           <SelectFilter label="Periodo" name="period" defaultValue={period} options={periodOptions} />
           <SelectFilter label="Origem" name="source" defaultValue={source ?? "all"} options={sourceOptions} />
@@ -398,7 +398,7 @@ function MetricCard({
   detail: string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-white p-5 shadow-sm">
+    <div className="admin-kpi-card rounded-xl p-5">
       <Icon className="h-5 w-5 text-primary" />
       <p className="mt-3 text-sm text-muted">{label}</p>
       <p className="mt-1 text-3xl font-black text-foreground">{value}</p>
@@ -428,7 +428,7 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-border bg-white p-5 shadow-sm">
+    <section className="admin-panel rounded-xl bg-white p-5">
       <div className="mb-4 flex items-center justify-between gap-4">
         <h2 className="font-semibold text-foreground">{title}</h2>
         <Link href={actionHref} className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:text-primary-dark">

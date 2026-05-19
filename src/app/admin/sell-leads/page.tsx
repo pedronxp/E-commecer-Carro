@@ -168,8 +168,8 @@ export default async function AdminSellLeadsPage({
 
   return (
     <div className="space-y-6">
-      <section className="rounded-lg border border-border bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <section className="admin-hero-panel rounded-xl p-6 shadow-sm">
+        <div className="relative z-[1] flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary-dark">Funil comercial</p>
             <h1 className="mt-2 text-2xl font-black text-slate-950">Vendas recebidas</h1>
@@ -208,7 +208,7 @@ export default async function AdminSellLeadsPage({
         />
       </section>
 
-      <form className="rounded-lg border border-border bg-white p-4 shadow-sm">
+      <form className="admin-command-bar rounded-xl p-4">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-950">
           <Filter className="h-4 w-4 text-primary" />
           Filtros de operacao
@@ -264,7 +264,7 @@ export default async function AdminSellLeadsPage({
           {leads.map((lead) => {
             const overdue = Boolean(lead.nextActionAt && activeStatuses.includes(lead.status) && lead.nextActionAt <= now);
             return (
-              <article key={lead.id} className={`rounded-lg border bg-white p-5 shadow-sm ${overdue ? "border-red-200" : "border-border"}`}>
+              <article key={lead.id} className={`admin-panel rounded-xl border bg-white p-5 shadow-sm ${overdue ? "border-red-200" : "border-border"}`}>
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">

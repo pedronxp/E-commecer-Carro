@@ -99,7 +99,8 @@ export default async function AdminCarsPage({
 
   return (
     <div>
-      <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+      <section className="admin-hero-panel mb-6 rounded-xl p-5 shadow-sm sm:p-6">
+        <div className="relative z-[1] flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <p className="text-sm font-semibold uppercase text-emerald-700">Catálogo operacional</p>
           <h1 className="text-2xl font-bold text-slate-950">Estoque</h1>
@@ -112,9 +113,10 @@ export default async function AdminCarsPage({
           <Plus className="h-4 w-4" />
           Novo veículo
         </Link>
-      </div>
+        </div>
+      </section>
 
-      <form className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
+      <form className="admin-command-bar mb-6 rounded-xl p-4">
         <div className="flex flex-wrap gap-4">
           <input
             name="q"
@@ -151,7 +153,7 @@ export default async function AdminCarsPage({
         </div>
       </form>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="admin-panel overflow-hidden rounded-xl bg-white">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1080px]">
             <thead className="border-b border-slate-200 bg-slate-50">

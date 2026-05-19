@@ -433,8 +433,8 @@ export function CarForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 lg:p-6">
-      <section className="rounded-lg border border-emerald-100 bg-emerald-50/70 p-4">
+    <form onSubmit={handleSubmit} className="admin-panel space-y-5 rounded-xl bg-white p-4 shadow-sm sm:p-5 lg:p-6">
+      <section className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-4">
         <div className="flex items-start gap-3">
           <Info className="mt-0.5 h-5 w-5 text-emerald-700" />
           <div>
@@ -459,7 +459,7 @@ export function CarForm({
         </button>
       </div>
 
-      <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+      <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
         <div>
           <h2 className="text-sm font-semibold text-slate-950">Dados públicos e parâmetros internos</h2>
           <p className="mt-1 text-xs leading-5 text-slate-500">

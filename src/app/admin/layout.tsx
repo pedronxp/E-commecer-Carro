@@ -1,10 +1,11 @@
 import AdminShell from "@/components/AdminShell";
-import { getCurrentUser } from "@/lib/session";
+import { isRecoverableDatabaseError, withDatabaseTimeout } from "@/lib/database-resilience";
+import { getCurrentUser, getSession } from "@/lib/session";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const user = await getCurrentUser();
+  const user = await getAdminLayoutUser();
 
   if (!user) {
     redirect("/login");
@@ -37,6 +38,27 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       {children}
     </AdminShell>
   );
+}
+
+async function getAdminLayoutUser() {
+  try {
+    return await withDatabaseTimeout(getCurrentUser());
+  } catch (error) {
+    if (process.env.NODE_ENV === "production" || !isRecoverableDatabaseError(error)) {
+      throw error;
+    }
+
+    const session = await getSession();
+    if (!session) return null;
+
+    console.error("[admin/layout] Failed to load current user from database", error);
+    return {
+      id: session.sub,
+      name: session.name,
+      email: session.email,
+      role: session.role,
+    };
+  }
 }
 
 function normalizeIpAddress(value?: string | null): string {

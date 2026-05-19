@@ -1,27 +1,18 @@
 export const dynamic = "force-dynamic";
 
+import type { Prisma } from "@prisma/client";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  AlertTriangle,
-  BadgePercent,
-  Calculator,
-  CheckCircle2,
-  Database,
-  Filter,
-  Gauge,
-  LineChart,
-  PlusCircle,
-  Target,
-  TrendingUp,
-  type LucideIcon,
-} from "lucide-react";
+import { AlertTriangle, Calculator, PlusCircle } from "lucide-react";
 import { PromotionCompareForm } from "@/components/admin/PromotionCompareForm";
 import { PromotionGuideDialog } from "@/components/admin/PromotionGuideDialog";
+import { isRecoverableDatabaseError, withDatabaseTimeout } from "@/lib/database-resilience";
 import { findFipexEstimate, findFipexModelSuggestions, type FipeExpandedAnalytics, type FipePriceHistoryPoint } from "@/lib/fipe-provider";
+import { buildMarketLiquidityInsight, type MarketLiquidityInsight } from "@/lib/market-liquidity";
 import {
   buildPriceDecision,
   buildPriceGuidance,
+  getPriceConditionOption,
   normalizePriceCondition,
   normalizeTargetMargin,
   parseMoneyText,
@@ -29,6 +20,7 @@ import {
   type PriceConditionKey,
 } from "@/lib/price-comparison";
 import { buildPriceTimeline, getTimelineVariation, normalizeTimelineRange, type PriceTimelinePoint, type TimelineRange } from "@/lib/price-timeline";
+import { buildMarketContext, getRecommendationReportModeOption, normalizeMarketUf, normalizeRecommendationReportMode } from "@/lib/pricing-report";
 import { prisma } from "@/lib/prisma";
 
 type SearchParams = {
@@ -46,6 +38,8 @@ type SearchParams = {
   compareModelSlug?: string;
   compareFuelId?: string;
   compareFuelAcronym?: string;
+  compareMarketUf?: string;
+  compareReportMode?: string;
   compareMakeName?: string;
   compareModelName?: string;
   compareFuelName?: string;
@@ -56,6 +50,22 @@ type HistoryTrend = {
   label: string;
   detail: string;
   tone: "default" | "success" | "danger" | "warning";
+};
+type MarketContext = ReturnType<typeof buildMarketContext>;
+
+const promotionStockVehicleInclude = {
+  brand: true,
+  category: true,
+  images: { where: { isPrimary: true }, take: 1 },
+} satisfies Prisma.CarInclude;
+
+type PromotionStockVehicle = Prisma.CarGetPayload<{
+  include: typeof promotionStockVehicleInclude;
+}>;
+
+type PromotionStockState = {
+  vehicles: PromotionStockVehicle[];
+  unavailable: boolean;
 };
 
 export default async function AdminPromotionsPage({
@@ -68,11 +78,11 @@ export default async function AdminPromotionsPage({
   const conditionKey = normalizePriceCondition(params.condition);
   const targetMargin = normalizeTargetMargin(params.targetMargin);
   const condition = priceConditionAdjustments[conditionKey];
-  const visibleView = params.view ?? "";
+  const conditionOption = getPriceConditionOption(params.condition ?? "");
   const visibleCondition = params.condition && params.condition in priceConditionAdjustments ? params.condition : "";
   const visibleTargetMargin = params.targetMargin ?? "";
-  const visibleTimelineRange = "";
-  const timelineRange = normalizeTimelineRange();
+  const timelineRange = normalizeTimelineRange(params.timelineRange);
+  const visibleTimelineRange = timelineRange;
   const historyRange = normalizeHistoryRange(params.historyRange);
   const compareTitle = String(params.compareTitle || "").trim();
   const compareYear = Number(params.compareYear || "");
@@ -83,12 +93,15 @@ export default async function AdminPromotionsPage({
   const compareModelSlug = normalizeOptional(params.compareModelSlug);
   const compareFuelId = normalizeOptional(params.compareFuelId);
   const compareFuelAcronym = normalizeOptional(params.compareFuelAcronym);
+  const compareMarketUf = normalizeMarketUf(params.compareMarketUf);
+  const reportMode = normalizeRecommendationReportMode(params.compareReportMode);
+  const reportModeOption = getRecommendationReportModeOption(reportMode);
+  const marketContext = buildMarketContext(compareMarketUf);
+  const showPlusReport = reportMode === "plus" || reportMode === "advanced";
+  const showAdvancedReport = reportMode === "advanced";
 
-  const [vehicles, standaloneFipe, historySuggestions] = await Promise.all([
-    prisma.car.findMany({
-      orderBy: { updatedAt: "desc" },
-      include: { brand: true, category: true, images: { where: { isPrimary: true }, take: 1 } },
-    }),
+  const [stockState, standaloneFipe, historySuggestions] = await Promise.all([
+    getPromotionStockVehicles(),
     compareTitle
       ? findFipexEstimate({
           title: compareTitle,
@@ -105,12 +118,12 @@ export default async function AdminPromotionsPage({
           query: compareTitle,
           vehicleType: compareType,
           includeOlderModels: true,
-        })
+      })
       : Promise.resolve([]),
   ]);
+  const vehicles = stockState.vehicles;
+  const stockUnavailable = stockState.unavailable;
 
-  const withFipe = vehicles.filter((vehicle) => vehicle.fipePrice);
-  const withMargin = vehicles.filter((vehicle) => vehicle.purchasePrice);
   const analyzedVehicles = vehicles.map((vehicle) => {
     const decision = buildPriceDecision({
       fipePrice: vehicle.fipePrice,
@@ -146,27 +159,7 @@ export default async function AdminPromotionsPage({
       if (view === "risk") return row.marginPercent !== null && row.marginPercent < targetMargin;
       if (view === "without-fipe") return !row.stateAdjustedFipe;
       return true;
-    });
-  const riskRows = analyzedVehicles.filter((row) => row.status.tone === "danger");
-  const attentionRows = analyzedVehicles.filter((row) => row.status.tone === "warning");
-  const positiveGapRows = analyzedVehicles.filter((row) => row.currentGap > 0);
-  const suggestedRevenue = sum(analyzedVehicles.map((row) => row.suggestedPrice));
-  const currentRevenue = sum(analyzedVehicles.map((row) => row.vehicle.price));
-  const revenueGap = suggestedRevenue - currentRevenue;
-  const primaryInsight = getPrimaryInsight({
-    rows,
-    riskRows,
-    attentionRows,
-    positiveGapRows,
-    revenueGap,
-    targetMargin,
   });
-  const PrimaryInsightIcon = primaryInsight.icon;
-  const avgSuggestedMargin = average(
-    rows
-      .map((row) => row.marginPercent)
-      .filter((value): value is number => value !== null),
-  );
   const standaloneDecision = buildPriceDecision({
     fipePrice: standaloneFipe?.price ?? null,
     purchasePrice: compareCost,
@@ -201,6 +194,19 @@ export default async function AdminPromotionsPage({
     compareType,
   });
   const localComparableAveragePrice = average(localComparableVehicles.map((vehicle) => vehicle.price));
+  const marketLiquidity = buildMarketLiquidityInsight({
+    marketUf: compareMarketUf,
+    vehicleType: compareType,
+    referencePrice: standaloneFipe?.price ?? compareSalePrice,
+    adjustedFipe: standaloneDecision.adjustedFipe,
+    suggestedPrice: standaloneDecision.suggestedPrice,
+    purchasePrice: compareCost,
+    maxRecommendedPurchasePrice: standaloneDecision.maxRecommendedPurchasePrice,
+    targetMargin,
+    trendTone: historyTrend.tone,
+    fipeSpreadPercent: visibleVariation?.percent,
+    localSampleCount: localComparableVehicles.length,
+  });
   const standaloneAction = getStandaloneAction({
     hasTitle: Boolean(compareTitle),
     hasDecision: standaloneDecision.hasDecision,
@@ -209,16 +215,27 @@ export default async function AdminPromotionsPage({
     marginPercent: standaloneMarginPercent,
     targetMargin,
   });
+  const standaloneChart = standaloneFipe && filteredHistory.length ? (
+    <FipeHistoryTimeline
+      history={filteredHistory}
+      vehicleTitle={standaloneFipe.title}
+      vehicleYear={standaloneFipe.year}
+      historyRange={historyRange}
+      trend={historyTrend}
+    />
+  ) : (
+    <PriceTimeline points={priceTimeline} timelineRange={timelineRange} selectedYear={Number.isFinite(compareYear) && compareYear > 0 ? compareYear : standaloneFipe?.year ?? null} />
+  );
 
   return (
     <div className="space-y-6">
-      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <section className="admin-hero-panel rounded-xl p-6 shadow-sm">
+        <div className="relative z-[1] flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-emerald-700">Precificação</p>
-            <h1 className="mt-2 text-2xl font-black text-slate-950">Comparativo FIPE e margem</h1>
+            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-emerald-700">Produto interno</p>
+            <h1 className="mt-2 text-2xl font-black text-slate-950">Precificador sem cadastro</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Compare preco atual FIPE, conservacao do veiculo, valor pretendido de compra e margem minima desejada para estimar o melhor preco para o negocio.
+              Simule FIPE, conservacao do veiculo, valor de compra da loja, margem minima e preco sugerido antes de cadastrar o veiculo no estoque.
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -234,127 +251,30 @@ export default async function AdminPromotionsPage({
         </div>
       </section>
 
-      <section className="space-y-3">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-slate-950">KPIs do estoque cadastrado</h2>
-            <p className="text-xs leading-5 text-slate-500">Estes numeros usam apenas veiculos ja cadastrados e os filtros do estoque.</p>
-          </div>
-          <span className="text-xs font-semibold text-slate-500">{vehicles.length} veiculo(s) no estoque</span>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <MetricCard icon={Database} label="Estoque filtrado" value={`${rows.length}/${vehicles.length}`} detail="Somente veiculos cadastrados" />
-          <MetricCard icon={BadgePercent} label="Cobertura FIPE" value={withFipe.length} detail={`${vehicles.length - withFipe.length} sem referencia no cadastro`} />
-          <MetricCard icon={AlertTriangle} label="Atencao no estoque" value={riskRows.length + attentionRows.length} detail={`${riskRows.length} abaixo da meta`} tone={riskRows.length ? "danger" : "default"} />
-          <MetricCard icon={TrendingUp} label="Potencial do estoque" value={formatCurrency(revenueGap)} detail={`Margem media filtrada: ${avgSuggestedMargin ? `${Math.round(avgSuggestedMargin)}%` : "0%"}`} tone={revenueGap > 0 ? "success" : "default"} />
-        </div>
-      </section>
-
-      <section className={`rounded-xl border p-5 shadow-sm ${primaryInsight.toneClass}`}>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      {stockUnavailable ? (
+        <section className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
           <div className="flex items-start gap-3">
-            <PrimaryInsightIcon className={`mt-0.5 h-5 w-5 ${primaryInsight.iconClass}`} />
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
             <div>
-              <h2 className="font-semibold text-slate-950">Diagnóstico da precificação</h2>
-              <p className="mt-1 text-sm leading-6 text-slate-600">{primaryInsight.message}</p>
+              <h2 className="text-sm font-semibold text-amber-950">Estoque cadastrado temporariamente indisponivel</h2>
+              <p className="mt-1 text-sm leading-6 text-amber-900">
+                O banco de dados do estoque nao respondeu agora. O precificador sem cadastro continua disponivel; apenas comparaveis internos de estoque ficam pausados ate a conexao voltar.
+              </p>
             </div>
           </div>
-          <div className="grid gap-2 text-sm sm:grid-cols-3 lg:min-w-[420px]">
-            <DiagnosticPill label="Estoque com custo" value={`${withMargin.length}/${vehicles.length}`} />
-            <DiagnosticPill label="Preço acima do atual" value={positiveGapRows.length} />
-            <DiagnosticPill label="Potencial" value={formatCurrency(revenueGap)} />
-          </div>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
-      <details className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" open={vehicles.length > 0}>
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-3">
-            <Filter className="h-5 w-5 text-emerald-700" />
-            <span>
-              <span className="block font-semibold text-slate-950">Filtros do estoque cadastrado</span>
-              <span className="mt-0.5 block text-xs text-slate-500">
-                {vehicles.length > 0 ? "Abra ou recolha os filtros da lista de veículos cadastrados." : "Disponível quando houver veículos cadastrados."}
-              </span>
-            </span>
-          </span>
-          <span className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600">
-            {vehicles.length > 0 ? "Mostrar/ocultar" : "Sem estoque"}
-          </span>
-        </summary>
-
-        {vehicles.length > 0 ? (
-          <form className="mt-4">
-            <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-5">
-              <SelectFilter
-                label="Visão"
-                name="view"
-                defaultValue={visibleView}
-                help="Define qual recorte do estoque será mostrado na lista e nos KPIs."
-                options={[
-                  ["", "Selecione"],
-                  ["all", "Todos"],
-                  ["below-fipe", "Abaixo da FIPE"],
-                  ["with-margin", "Com margem"],
-                  ["risk", "Risco/prejuízo"],
-                  ["without-fipe", "Sem FIPE"],
-                ]}
-              />
-              <SelectFilter
-                label="Conservacao do veiculo"
-                name="condition"
-                defaultValue={visibleCondition}
-                help="Opcional. Ajusta a FIPE pelo estado real do veiculo; deixe sem ajuste quando nao houver avaliacao de conservacao."
-                options={[["", "Sem ajuste"], ...Object.entries(priceConditionAdjustments).map(([key, value]) => [key, value.label] as [string, string])]}
-              />
-              <SelectFilter
-                label="Margem minima desejada"
-                name="targetMargin"
-                defaultValue={visibleTargetMargin}
-                help="Percentual minimo usado para calcular preco sugerido, risco de margem e valor maximo recomendado para compra."
-                options={[
-                  ["", "Padrao 12%"],
-                  ["8", "8% conservador"],
-                  ["12", "12% padrao"],
-                  ["15", "15% agressivo"],
-                  ["20", "20% alto"],
-                ]}
-              />
-              <div className="flex items-end">
-                <button className="w-full rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800">
-                  Aplicar
-                </button>
-              </div>
-              <div className="flex items-end">
-                <Link
-                  href="/admin/promotions"
-                  className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                >
-                  Limpar filtros
-                </Link>
-              </div>
-            </div>
-            <p className="mt-3 text-xs leading-5 text-slate-500">
-              Estes filtros recalculam apenas os KPIs e a lista de veículos cadastrados abaixo. O comparativo avulso só roda quando você clicar em Comparar.
-            </p>
-          </form>
-        ) : (
-          <div className="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
-            Cadastre o primeiro veículo para liberar filtros de estoque. Enquanto isso, use o comparativo avulso para simular uma compra antes do cadastro.
-          </div>
-        )}
-      </details>
-
-      <section className="overflow-hidden rounded-xl border border-emerald-200 bg-white p-5 shadow-sm">
+      <section className="admin-panel overflow-visible rounded-xl border border-emerald-200 bg-white p-5 shadow-sm">
         <div className="flex items-start gap-3">
           <Calculator className="mt-0.5 h-5 w-5 text-emerald-700" />
           <div className="min-w-0 flex-1">
-            <h2 className="font-semibold text-slate-950">Comparar veículo sem cadastrar</h2>
+            <h2 className="font-semibold text-slate-950">Simulacao de compra sem cadastro</h2>
             <p className="mt-1 text-sm leading-6 text-slate-600">
-              Nao precisa escolher outro carro do estoque. Informe modelo, ano-modelo, conservacao do veiculo, margem minima desejada e valor pretendido de compra para estimar FIPE, melhor preco para o negocio, lucro bruto e margem antes de cadastrar.
+              Nao precisa escolher outro veiculo do estoque. Informe modelo, ano-modelo, conservacao, margem minima e valor de compra da loja para estimar FIPE, teto de compra, preco de anuncio, lucro bruto e margem antes de cadastrar.
             </p>
             <PromotionCompareForm
-              key={`${compareTitle}-${params.compareYear ?? ""}-${compareType}-${params.compareCost ?? ""}-${params.compareSalePrice ?? ""}-${params.compareModelId ?? ""}-${params.compareModelSlug ?? ""}-${params.compareFuelId ?? ""}-${params.compareFuelAcronym ?? ""}-${params.compareMakeName ?? ""}-${params.compareModelName ?? ""}-${params.compareFuelName ?? ""}-${visibleCondition}-${visibleTargetMargin}-${visibleTimelineRange}-${historyRange}`}
+              key={`${compareTitle}-${params.compareYear ?? ""}-${compareType}-${params.compareCost ?? ""}-${params.compareSalePrice ?? ""}-${params.compareModelId ?? ""}-${params.compareModelSlug ?? ""}-${params.compareFuelId ?? ""}-${params.compareFuelAcronym ?? ""}-${params.compareMarketUf ?? ""}-${params.compareReportMode ?? ""}-${params.compareMakeName ?? ""}-${params.compareModelName ?? ""}-${params.compareFuelName ?? ""}-${visibleCondition}-${visibleTargetMargin}-${visibleTimelineRange}-${historyRange}`}
               view={view}
               condition={visibleCondition}
               targetMargin={visibleTargetMargin}
@@ -369,6 +289,8 @@ export default async function AdminPromotionsPage({
               initialModelSlug={params.compareModelSlug ?? ""}
               initialFuelId={params.compareFuelId ?? ""}
               initialFuelAcronym={params.compareFuelAcronym ?? ""}
+              initialMarketUf={compareMarketUf}
+              initialReportMode={reportMode}
               initialMakeName={params.compareMakeName ?? standaloneFipe?.makeName ?? ""}
               initialModelName={params.compareModelName ?? standaloneFipe?.modelName ?? ""}
               initialFuelName={params.compareFuelName ?? standaloneFipe?.fuelName ?? ""}
@@ -379,22 +301,22 @@ export default async function AdminPromotionsPage({
                 {standaloneDecision.hasDecision && standaloneSuggestedPrice ? (
                   <div className="space-y-4">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Comparativo avulso</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Simulacao sem cadastro</p>
                       <h3 className="mt-1 text-lg font-black text-slate-950">Resultado para decisao comercial</h3>
                       <p className="mt-1 text-xs leading-5 text-slate-500">
-                        Este bloco nao altera os KPIs do estoque. Ele usa somente o modelo selecionado, FIPE, valor pretendido de compra, conservacao e margem minima desejada.
+                        Modo {reportModeOption.label}. Este bloco usa modelo selecionado, FIPE, valor de compra da loja, conservacao, margem minima e contexto de UF quando informado.
                       </p>
                     </div>
                     <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
                       <div className="rounded-lg border border-emerald-200 bg-white p-4">
-                        <p className="text-sm font-semibold text-slate-950">
-                          Nosso sistema sugere o melhor preço para seu negócio em {compareTitle}:{" "}
-                          <span className="text-emerald-700">{formatCurrency(standaloneSuggestedPrice)}</span>.
+                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">Melhor preco para comprar</p>
+                        <p className="mt-1 text-2xl font-black leading-tight text-slate-950">
+                          {marketLiquidity.bestPurchasePrice ? formatCurrency(marketLiquidity.bestPurchasePrice) : standaloneDecision.maxRecommendedPurchasePrice ? formatCurrency(standaloneDecision.maxRecommendedPurchasePrice) : "Sem teto"}
                         </p>
                         <p className="mt-1 text-xs leading-5 text-slate-500">
                           {standaloneFipe
-                            ? `A recomendacao combina FIPE ajustada por estado, valor pretendido de compra e margem minima de ${targetMargin}%.`
-                            : `A recomendacao usa custo/preco informados e margem minima de ${targetMargin}% enquanto a FIPE automatica nao encontra match confiavel.`}
+                            ? `Compra recomendada para preservar margem, conservacao e liquidez ${marketContext.requestedUf ? `em ${marketContext.requestedUf}` : "nacional"}. Preco de anuncio sugerido: ${formatCurrency(standaloneSuggestedPrice)}.`
+                            : `Sem FIPE confiavel, o sistema usa custo/preco informados e margem minima de ${targetMargin}% com confianca reduzida.`}
                         </p>
                       </div>
                       <div className={`rounded-lg border p-4 ${standaloneAction.className}`}>
@@ -404,15 +326,30 @@ export default async function AdminPromotionsPage({
                     </div>
                     <PurchaseRecommendation
                       suggestedPrice={standaloneSuggestedPrice}
+                      purchaseCeiling={standaloneDecision.maxRecommendedPurchasePrice}
+                      bestPurchasePrice={marketLiquidity.bestPurchasePrice}
+                      marketLiquidity={marketLiquidity}
                       targetMargin={targetMargin}
                       intendedPayment={compareCost}
                       localAveragePrice={localComparableAveragePrice}
                       localSampleCount={localComparableVehicles.length}
                       hasFipe={Boolean(standaloneFipe)}
                     />
-                    <div className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-6">
+                    <DecisionContextCards
+                      conditionLabel={conditionOption.optionLabel}
+                      conditionEffect={conditionOption.effect}
+                      targetMargin={targetMargin}
+                      intendedPayment={compareCost}
+                      purchaseCeiling={standaloneDecision.maxRecommendedPurchasePrice}
+                      referenceQuality={referenceQuality}
+                      marketContext={marketContext}
+                      marketLiquidity={marketLiquidity}
+                      hasFipe={Boolean(standaloneFipe)}
+                    />
+                    <MarketLiquidityPanel insight={marketLiquidity} />
+                    <div className="grid gap-3 text-[13px] md:grid-cols-2 xl:grid-cols-6">
                       <PriceBlock label="Preço atual FIPE" value={standaloneFipe ? formatCurrency(standaloneFipe.price) : "Sem FIPE"} strong />
-                      <PriceBlock label={`FIPE ${condition.label}`} value={standaloneDecision.adjustedFipe ? formatCurrency(standaloneDecision.adjustedFipe) : "Sem FIPE"} />
+                      <PriceBlock label={conditionOption.decisionLabel} value={standaloneDecision.adjustedFipe ? formatCurrency(standaloneDecision.adjustedFipe) : "Sem FIPE"} />
                       <PriceBlock label="Preço sugerido para anunciar" value={formatCurrency(standaloneSuggestedPrice)} tone="success" />
                       <PriceBlock
                         label="Lucro bruto"
@@ -422,55 +359,46 @@ export default async function AdminPromotionsPage({
                       <PriceBlock label="Fonte de preço" value={standaloneFipe ? `${standaloneFipe.provider} - ${standaloneFipe.confidence}` : "Manual"} />
                       <PriceBlock label="Referência encontrada" value={standaloneFipe ? `${standaloneFipe.referenceMonth} - ${standaloneFipe.title}` : "Valor informado manualmente"} />
                     </div>
-                    <ProviderEvidence
-                      title={standaloneFipe?.title ?? compareTitle}
-                      makeName={params.compareMakeName ?? standaloneFipe?.makeName}
-                      modelName={params.compareModelName ?? standaloneFipe?.modelName}
-                      fuelName={params.compareFuelName ?? standaloneFipe?.fuelName}
-                      year={Number.isFinite(compareYear) && compareYear > 0 ? compareYear : standaloneFipe?.year}
-                      referenceMonth={standaloneFipe?.referenceMonth}
-                      referenceQuality={referenceQuality}
-                    />
-                    {standaloneFipe?.analytics ? <FipeAnalyticsStrip analytics={standaloneFipe.analytics} /> : null}
-                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-                      <StandaloneMetric label="Preço atual FIPE" value={standaloneFipe ? formatCurrency(standaloneFipe.price) : "Sem match"} detail="Referência retornada para o modelo selecionado" />
-                      <StandaloneMetric label="Preço sugerido para anunciar" value={formatCurrency(standaloneSuggestedPrice)} detail="Referência comercial atual, não previsão de venda futura" tone="success" />
-                      <StandaloneMetric
-                        label="Lucro bruto"
-                        value={standaloneMargin !== null ? formatCurrency(standaloneMargin) : "Informe custo"}
-                        detail={standaloneMarginPercent !== null ? `${standaloneMarginPercent}% sobre o preço sugerido` : "Depende do valor que pretende pagar"}
-                        tone={standaloneMarginPercent !== null && standaloneMarginPercent < targetMargin ? "danger" : "success"}
-                      />
-                      <StandaloneMetric
-                        label="Diferença menor/maior"
-                        value={visibleVariation ? formatCurrency(visibleVariation.absolute) : "Sem janela"}
-                        detail={visibleVariation ? `${visibleVariation.percent}% entre minima e maxima` : "Selecione um modelo com historico"}
-                      />
-                      <StandaloneMetric
-                        label="Tendencia FIPE"
-                        value={historyTrend.label}
-                        detail={historyTrend.detail}
-                        tone={historyTrend.tone}
-                      />
-                      <StandaloneMetric
-                        label="Qualidade da referencia"
-                        value={referenceQuality}
-                        detail={standaloneFipe ? "Baseada no match FIPE/FipeX selecionado" : "Sem fornecedor automatico confiavel"}
-                        tone={standaloneFipe ? "success" : "warning"}
-                      />
-                    </div>
-                    <DecisionFormula decision={standaloneDecision} guidance={standaloneGuidance} />
-                    {standaloneFipe && filteredHistory.length ? (
-                      <FipeHistoryTimeline
-                        history={filteredHistory}
-                        vehicleTitle={standaloneFipe.title}
-                        vehicleYear={standaloneFipe.year}
-                        historyRange={historyRange}
-                        trend={historyTrend}
-                      />
-                    ) : (
-                      <PriceTimeline points={priceTimeline} timelineRange={timelineRange} selectedYear={Number.isFinite(compareYear) && compareYear > 0 ? compareYear : standaloneFipe?.year ?? null} />
-                    )}
+                    {showPlusReport ? (
+                      <>
+                        <ProviderEvidence
+                          title={standaloneFipe?.title ?? compareTitle}
+                          makeName={params.compareMakeName ?? standaloneFipe?.makeName}
+                          modelName={params.compareModelName ?? standaloneFipe?.modelName}
+                          fuelName={params.compareFuelName ?? standaloneFipe?.fuelName}
+                          year={Number.isFinite(compareYear) && compareYear > 0 ? compareYear : standaloneFipe?.year}
+                          referenceMonth={standaloneFipe?.referenceMonth}
+                          referenceQuality={referenceQuality}
+                          marketContext={marketContext}
+                        />
+                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+                          <StandaloneMetric label="Preço atual FIPE" value={standaloneFipe ? formatCurrency(standaloneFipe.price) : "Sem match"} detail="Referência retornada para o modelo selecionado" />
+                          <StandaloneMetric label="Preço sugerido para anunciar" value={formatCurrency(standaloneSuggestedPrice)} detail="Referência comercial atual, não previsão de venda futura" tone="success" />
+                          <StandaloneMetric
+                            label="Lucro bruto"
+                            value={standaloneMargin !== null ? formatCurrency(standaloneMargin) : "Informe custo"}
+                            detail={standaloneMarginPercent !== null ? `${standaloneMarginPercent}% sobre o preco sugerido` : "Depende do valor de compra da loja"}
+                            tone={standaloneMarginPercent !== null && standaloneMarginPercent < targetMargin ? "danger" : "success"}
+                          />
+                          <StandaloneMetric
+                            label="Amplitude FIPE"
+                            value={visibleVariation ? formatCurrency(visibleVariation.absolute) : "Sem janela"}
+                            detail={visibleVariation ? `${visibleVariation.percent}% entre menor e maior FIPE da janela` : "Historico insuficiente"}
+                          />
+                          <StandaloneMetric label="Tendencia FIPE" value={historyTrend.label} detail={historyTrend.detail} tone={historyTrend.tone} />
+                          <StandaloneMetric label="Qualidade FIPE" value={referenceQuality} detail={standaloneFipe ? "Match automatico com conferencia recomendada" : "Manual/parcial"} tone={standaloneFipe ? "success" : "warning"} />
+                        </div>
+                        {standaloneChart}
+                      </>
+                    ) : null}
+                    {showAdvancedReport ? (
+                      <>
+                        {standaloneFipe?.analytics ? <FipeAnalyticsStrip analytics={standaloneFipe.analytics} /> : null}
+                        <RecommendationFunnel decision={standaloneDecision} guidance={standaloneGuidance} marketContext={marketContext} marketLiquidity={marketLiquidity} referenceQuality={referenceQuality} />
+                        <LiquiditySensitivityChart insight={marketLiquidity} targetMargin={targetMargin} />
+                        <DecisionFormula decision={standaloneDecision} guidance={standaloneGuidance} />
+                      </>
+                    ) : null}
                   </div>
                 ) : (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
@@ -486,19 +414,11 @@ export default async function AdminPromotionsPage({
         </div>
       </section>
 
-      {vehicles.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
-          <BadgePercent className="mx-auto h-12 w-12 text-slate-300" />
-          <p className="mt-3 text-lg font-semibold text-slate-950">Nenhum veículo cadastrado.</p>
-          <p className="mt-2 text-sm text-slate-500">
-            Cadastre o primeiro veículo com preço de venda, custo de compra e FIPE para liberar comparativos.
-          </p>
-        </div>
-      ) : (
+      {vehicles.length > 0 ? (
         <section className="space-y-3">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-base font-semibold text-slate-950">Comparativo do estoque</h2>
+              <h2 className="text-base font-semibold text-slate-950">Estoque cadastrado</h2>
               <p className="text-xs leading-5 text-slate-500">Lista calculada somente com veiculos cadastrados, custo, FIPE e filtros do estoque.</p>
             </div>
             <span className="text-xs font-semibold text-slate-500">{rows.length} item(ns) filtrado(s)</span>
@@ -549,90 +469,29 @@ export default async function AdminPromotionsPage({
             })}
           </div>
         </section>
-      )}
+      ) : null}
     </div>
   );
 }
 
-function SelectFilter({
-  label,
-  name,
-  defaultValue,
-  options,
-  help,
-}: {
-  label: string;
-  name: string;
-  defaultValue: string;
-  options: Array<[string, string]>;
-  help?: string;
-}) {
-  const tooltipId = help ? `filter-help-${name}` : undefined;
-  return (
-    <label className="min-w-0 text-sm font-medium text-slate-700">
-      <span className="inline-flex min-w-0 items-center gap-1.5">
-        <span className="truncate">{label}</span>
-        {help ? (
-          <span className="group/help relative inline-flex shrink-0">
-            <span
-              tabIndex={0}
-              aria-describedby={tooltipId}
-              className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-300 bg-white text-[10px] font-black text-slate-500 transition hover:border-emerald-300 hover:text-emerald-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-            >
-              ?
-            </span>
-            <span
-              id={tooltipId}
-              role="tooltip"
-              className="pointer-events-none invisible absolute left-1/2 top-full z-50 mt-2 w-72 -translate-x-1/2 rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-left text-[11px] font-medium leading-4 text-white opacity-0 shadow-xl transition group-hover/help:visible group-hover/help:opacity-100 group-focus-within/help:visible group-focus-within/help:opacity-100"
-            >
-              {help}
-            </span>
-          </span>
-        ) : null}
-      </span>
-      <select
-        name={name}
-        defaultValue={defaultValue}
-        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-      >
-        {options.map(([value, text]) => (
-          <option key={value} value={value}>
-            {text}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
+async function getPromotionStockVehicles(): Promise<PromotionStockState> {
+  try {
+    const vehicles = await withDatabaseTimeout(
+      prisma.car.findMany({
+        orderBy: { updatedAt: "desc" },
+        include: promotionStockVehicleInclude,
+      }),
+    );
 
-function MetricCard({
-  icon: Icon,
-  label,
-  value,
-  detail,
-  tone = "default",
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string | number;
-  detail: string;
-  tone?: "default" | "success" | "danger";
-}) {
-  const toneClass = {
-    default: "border-slate-200 bg-white text-emerald-700",
-    success: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    danger: "border-red-200 bg-red-50 text-red-700",
-  }[tone];
+    return { vehicles, unavailable: false };
+  } catch (error) {
+    if (!isRecoverableDatabaseError(error)) {
+      throw error;
+    }
 
-  return (
-    <div className={`rounded-xl border p-5 shadow-sm ${toneClass}`}>
-      <Icon className="h-5 w-5" />
-      <p className="mt-3 text-sm text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-black text-slate-950">{value}</p>
-      <p className="mt-1 text-xs text-slate-500">{detail}</p>
-    </div>
-  );
+    console.error("[admin/promotions] Failed to load stock vehicles", error);
+    return { vehicles: [], unavailable: true };
+  }
 }
 
 function StandaloneMetric({
@@ -656,7 +515,7 @@ function StandaloneMetric({
   return (
     <div className={`rounded-lg border px-4 py-3 ${toneClass}`}>
       <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">{label}</p>
-      <p className="mt-1 text-lg font-black">{value}</p>
+      <p className="mt-1 text-base font-black leading-6">{value}</p>
       <p className="mt-1 text-xs leading-5 text-slate-500">{detail}</p>
     </div>
   );
@@ -670,6 +529,7 @@ function ProviderEvidence({
   year,
   referenceMonth,
   referenceQuality,
+  marketContext,
 }: {
   title: string;
   makeName?: string | null;
@@ -678,6 +538,7 @@ function ProviderEvidence({
   year?: number | null;
   referenceMonth?: string | null;
   referenceQuality: string;
+  marketContext: MarketContext;
 }) {
   const items = [
     ["Marca", makeName],
@@ -686,19 +547,21 @@ function ProviderEvidence({
     ["Ano-modelo", year ? String(year) : null],
     ["Referencia", referenceMonth],
     ["Qualidade", referenceQuality],
+    ["UF/escopo", marketContext.requestedUf ? `${marketContext.requestedUf} - FIPE nacional` : "FIPE nacional"],
   ];
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4">
       <div className="flex flex-col gap-1 md:flex-row md:items-start md:justify-between">
         <div>
-          <p className="text-sm font-semibold text-slate-950">Referencia FIPE usada na decisao</p>
+          <p className="text-sm font-semibold text-slate-950">Qualidade da referencia FIPE usada na decisao</p>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            A comparacao usa a selecao estruturada da API quando existem modelo, combustivel e ano. Se faltar algum dado, o painel mostra a analise como manual ou parcial.
+            Referencia exata usa selecao estruturada de modelo, combustivel e ano. A FIPE/FipeX atual nao filtra por UF; trate mercado local como validacao comercial separada.
           </p>
+          <p className="mt-1 text-[11px] leading-4 text-slate-500">{marketContext.note}</p>
         </div>
       </div>
-      <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
         {items.map(([label, value]) => (
           <div key={label} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
             <p className="font-semibold text-slate-500">{label}</p>
@@ -715,27 +578,27 @@ function FipeAnalyticsStrip({ analytics }: { analytics: FipeExpandedAnalytics })
     {
       label: "Retencao de valor",
       value: formatNullablePercent(analytics.valueRetentionPercent),
-      detail: "quanto do valor foi preservado no ciclo FIPE",
+      detail: "quanto do valor FIPE foi preservado; maior retencao tende a dar mais seguranca na negociacao",
     },
     {
       label: "Variacao mensal",
       value: formatNullablePercent(analytics.changeFromPreviousMonthPercent),
-      detail: "mudanca contra a referencia anterior",
+      detail: "mudanca contra a referencia anterior; queda recente pede cautela no valor de entrada",
     },
     {
       label: "Volatilidade",
       value: formatNullableNumber(analytics.priceVolatility),
-      detail: "oscilacao do preco na serie",
+      detail: "oscilacao da serie; quanto maior, mais importante confirmar FIPE e mercado local",
     },
     {
       label: "Depreciacao anual",
       value: formatNullablePercent(analytics.annualDepreciationRate),
-      detail: "ritmo estimado de perda anual",
+      detail: "ritmo estimado de perda anual usado apenas como leitura de apoio",
     },
     {
       label: "Ciclo do veiculo",
       value: analytics.lifecycleStatus || "Nao informado",
-      detail: "classificacao retornada pelo provedor",
+      detail: "classificacao do ciclo FIPE para orientar risco e expectativa de negociacao",
     },
   ];
 
@@ -744,7 +607,7 @@ function FipeAnalyticsStrip({ analytics }: { analytics: FipeExpandedAnalytics })
       <div>
         <p className="text-sm font-semibold text-slate-950">Leitura analitica da FIPE</p>
         <p className="mt-1 text-xs leading-5 text-slate-500">
-          Estes dados enriquecem a decisao, mas nao substituem conferencia comercial, estado real do veiculo e FIPE oficial no fechamento.
+          Leitura gerencial da serie FIPE. Use para entender estabilidade, risco e poder de negociacao, sem substituir conferencia comercial, estado real do veiculo e FIPE oficial no fechamento.
         </p>
       </div>
       <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
@@ -762,6 +625,9 @@ function FipeAnalyticsStrip({ analytics }: { analytics: FipeExpandedAnalytics })
 
 function PurchaseRecommendation({
   suggestedPrice,
+  purchaseCeiling,
+  bestPurchasePrice,
+  marketLiquidity,
   targetMargin,
   intendedPayment,
   localAveragePrice,
@@ -769,20 +635,30 @@ function PurchaseRecommendation({
   hasFipe,
 }: {
   suggestedPrice: number;
+  purchaseCeiling: number | null;
+  bestPurchasePrice: number | null;
+  marketLiquidity: MarketLiquidityInsight;
   targetMargin: number;
   intendedPayment: number | null;
   localAveragePrice: number | null;
   localSampleCount: number;
   hasFipe: boolean;
 }) {
-  const maxPayment = Math.round(suggestedPrice * (1 - targetMargin / 100));
+  const maxPayment = bestPurchasePrice ?? purchaseCeiling;
+  const riskCeiling = purchaseCeiling;
   const paymentValue = typeof intendedPayment === "number" && intendedPayment > 0 ? intendedPayment : null;
   const hasPayment = paymentValue !== null;
-  const isOverLimit = paymentValue !== null && paymentValue > maxPayment;
-  const remaining = paymentValue !== null ? maxPayment - paymentValue : null;
+  const hasCeiling = maxPayment !== null;
+  const isOverBest = paymentValue !== null && maxPayment !== null && paymentValue > maxPayment;
+  const isOverLimit = paymentValue !== null && riskCeiling !== null && paymentValue > riskCeiling;
+  const remaining = paymentValue !== null && maxPayment !== null ? maxPayment - paymentValue : null;
+  const ceilingText = maxPayment !== null ? formatCurrency(maxPayment) : "Sem referencia";
+  const riskCeilingText = riskCeiling !== null ? formatCurrency(riskCeiling) : "Sem referencia";
   const toneClass = isOverLimit
     ? "border-red-200 bg-red-50"
-    : hasPayment
+    : isOverBest
+      ? "border-amber-200 bg-amber-50"
+      : hasPayment && hasCeiling
       ? "border-emerald-200 bg-emerald-50"
       : "border-amber-200 bg-amber-50";
 
@@ -790,31 +666,347 @@ function PurchaseRecommendation({
     <div className={`rounded-xl border p-4 ${toneClass}`}>
       <div className="grid gap-3 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Valor maximo recomendado para compra</p>
-          <p className={`mt-1 text-2xl font-black ${isOverLimit ? "text-red-700" : "text-emerald-700"}`}>{formatCurrency(maxPayment)}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Comprar ate</p>
+          <p className={`mt-1 text-2xl font-black ${isOverLimit ? "text-red-700" : hasCeiling ? "text-emerald-700" : "text-amber-700"}`}>
+            {ceilingText}
+          </p>
           <p className="mt-1 text-xs leading-5 text-slate-600">
-            Para manter margem minima de {targetMargin}% sobre o preco sugerido, o sistema recomenda pagar ate esse valor.
+            Melhor preco de compra considerando margem minima de {targetMargin}%, FIPE/conservacao e liquidez estimada. Teto tecnico antes de risco: {riskCeilingText}.
           </p>
         </div>
         <div className="rounded-lg border border-white/70 bg-white/75 px-3 py-2 text-sm leading-6 text-slate-700">
           {isOverLimit ? (
             <p>
-              O valor pretendido esta {formatCurrency(Math.abs(remaining ?? 0))} acima do teto. Acima de {formatCurrency(maxPayment)}, talvez nao valha a pena sem reduzir custo, melhorar preco de anuncio ou aceitar margem menor.
+              O valor de compra da loja passou do teto tecnico de {riskCeilingText}. Acima disso, talvez nao valha a pena sem renegociar, reduzir custo ou aceitar margem menor.
+            </p>
+          ) : isOverBest ? (
+            <p>
+              A proposta esta {formatCurrency(Math.abs(remaining ?? 0))} acima do melhor preco para comprar, mas ainda nao passou do teto tecnico. Use como faixa de renegociacao.
             </p>
           ) : hasPayment ? (
             <p>
-              O valor pretendido esta dentro do teto. Ainda restam {formatCurrency(Math.max(remaining ?? 0, 0))} de folga antes de perder a margem minima.
+              {hasCeiling
+                ? `O valor de compra da loja esta dentro do melhor preco. Ainda restam ${formatCurrency(Math.max(remaining ?? 0, 0))} de folga para negociar.`
+                : `Sem FIPE/preco atual, o painel calcula apenas o anuncio minimo de ${formatCurrency(suggestedPrice)} para preservar a margem informada.`}
             </p>
           ) : (
             <p>
-              Informe o valor pretendido de compra para o sistema comparar contra esse teto e mostrar se o negocio fecha na margem desejada.
+              Informe o valor de compra da loja para comparar contra o melhor preco, o teto tecnico e a margem desejada.
             </p>
           )}
           <p className="mt-2 text-xs leading-5 text-slate-500">
-            Base usada: {hasFipe ? "FIPE/FipeX do modelo selecionado" : "preco informado manualmente"}, margem minima desejada e {localSampleCount > 0 ? `estoque local com ${localSampleCount} similar(es), media ${formatCurrency(localAveragePrice ?? 0)}` : "sem similares locais suficientes"}.
+            Base usada: {hasFipe ? "FIPE/FipeX nacional do modelo selecionado" : hasCeiling ? "preco informado manualmente" : "sem referencia de mercado suficiente"}, liquidez {marketLiquidity.score}/100 e {localSampleCount > 0 ? `estoque local com ${localSampleCount} similar(es), media ${formatCurrency(localAveragePrice ?? 0)}` : "sem similares locais suficientes"}.
           </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+function MarketLiquidityPanel({ insight }: { insight: MarketLiquidityInsight }) {
+  const toneClass = {
+    success: "border-emerald-200 bg-emerald-50",
+    warning: "border-amber-200 bg-amber-50",
+    danger: "border-red-200 bg-red-50",
+    default: "border-slate-200 bg-white",
+  }[insight.tone];
+
+  return (
+    <div className={`rounded-xl border p-4 ${toneClass}`}>
+      <div className="grid gap-3 lg:grid-cols-[0.8fr_1.2fr]">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Liquidez e revenda</p>
+          <div className="mt-2 flex flex-wrap items-end gap-3">
+            <p className="text-2xl font-black leading-none text-slate-950">{insight.score}/100</p>
+            <p className="text-sm font-semibold text-slate-700">{insight.resaleLikelihoodPercent}% chance relativa de revenda</p>
+          </div>
+          <p className="mt-2 text-xs leading-5 text-slate-600">{insight.summary}</p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <MiniDecisionCard label="Comprar ideal" value={insight.bestPurchasePrice ? formatCurrency(insight.bestPurchasePrice) : "Sem base"} detail={`Desconto liquidez: ${insight.liquidityDiscountPercent}%`} />
+          <MiniDecisionCard label="Compra competitiva" value={insight.competitivePurchasePrice ? formatCurrency(insight.competitivePurchasePrice) : "Sem base"} detail="Faixa ainda negociavel" />
+          <MiniDecisionCard label="Anunciar com giro" value={formatRange(insight.targetListingMin, insight.targetListingMax)} detail={`Confianca ${insight.confidence}`} />
+        </div>
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+        {insight.drivers.map((driver) => (
+          <div key={driver.label} className={`rounded-lg border px-3 py-2 ${getLiquidityToneClass(driver.tone)}`}>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600">{driver.label}</p>
+              <p className="text-xs font-black text-slate-900">{driver.score}/100</p>
+            </div>
+            <p className="mt-1 text-[11px] leading-4 text-slate-600">{driver.detail}</p>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-[11px] leading-4 text-slate-500">
+        Esta leitura mede liquidez regional e risco comercial. Ela nao altera a FIPE nacional; serve para decidir compra, faixa de anuncio e confianca de revenda.
+      </p>
+      <details className="mt-3 rounded-lg border border-white/80 bg-white/70 px-3 py-2 text-xs text-slate-700">
+        <summary className="cursor-pointer select-none font-semibold text-slate-950">
+          Como calculamos a liquidez
+        </summary>
+        <p className="mt-2 leading-5 text-slate-600">
+          Somamos cinco sinais para aproximar o giro real do mercado: {insight.calculation.formula}. O objetivo e mostrar risco de compra e chance relativa de revenda, sem alterar a FIPE nacional.
+        </p>
+        <div className="mt-2 divide-y divide-slate-200 overflow-hidden rounded-md border border-slate-200 bg-white">
+          {insight.calculation.components.map((component) => (
+            <div key={component.label} className="grid gap-1 px-3 py-2 sm:grid-cols-[1fr_5rem_5rem] sm:items-center">
+              <div>
+                <p className="font-semibold text-slate-950">{component.label}</p>
+                <p className="text-[11px] leading-4 text-slate-500">{component.detail}</p>
+              </div>
+              <p className="font-semibold text-slate-600 sm:text-right">{component.weight}%</p>
+              <p className="font-black text-slate-950 sm:text-right">{component.contribution} pts</p>
+            </div>
+          ))}
+        </div>
+        <p className="mt-2 text-[11px] leading-4 text-slate-500">{insight.calculation.note}</p>
+      </details>
+    </div>
+  );
+}
+
+function MiniDecisionCard({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return (
+    <div className="rounded-lg border border-white/80 bg-white/80 px-3 py-2">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-black leading-5 text-slate-950">{value}</p>
+      <p className="mt-1 text-[11px] leading-4 text-slate-500">{detail}</p>
+    </div>
+  );
+}
+
+function RecommendationFunnel({
+  decision,
+  guidance,
+  marketContext,
+  marketLiquidity,
+  referenceQuality,
+}: {
+  decision: ReturnType<typeof buildPriceDecision>;
+  guidance: ReturnType<typeof buildPriceGuidance>;
+  marketContext: MarketContext;
+  marketLiquidity: MarketLiquidityInsight;
+  referenceQuality: string;
+}) {
+  const overCeiling = decision.purchaseExceedsRecommendedPrice;
+  const missingPurchase = decision.purchasePrice === null;
+  const steps = [
+    {
+      label: "1. Referencia",
+      value: decision.recommendedPurchaseReferencePrice ? formatCurrency(decision.recommendedPurchaseReferencePrice) : "Sem base",
+      detail: `${referenceQuality}. ${marketContext.source}${marketContext.requestedUf ? ` com UF ${marketContext.requestedUf} apenas como contexto.` : "."}`,
+      tone: "sky" as const,
+    },
+    {
+      label: "2. Conservacao",
+      value: decision.adjustedFipe ? formatCurrency(decision.adjustedFipe) : "Nao aplicada",
+      detail: `${decision.conditionLabel} multiplica a FIPE pelo fator comercial de estado real.`,
+      tone: "slate" as const,
+    },
+    {
+      label: "3. Teto de compra",
+      value: marketLiquidity.bestPurchasePrice ? formatCurrency(marketLiquidity.bestPurchasePrice) : decision.maxRecommendedPurchasePrice ? formatCurrency(decision.maxRecommendedPurchasePrice) : "Sem teto",
+      detail: `Melhor compra ajustada por liquidez. Teto tecnico: ${decision.maxRecommendedPurchasePrice ? formatCurrency(decision.maxRecommendedPurchasePrice) : "sem base"}.`,
+      tone: overCeiling ? "red" as const : "emerald" as const,
+    },
+    {
+      label: "4. Compra da loja",
+      value: decision.purchasePrice ? formatCurrency(decision.purchasePrice) : "Nao informada",
+      detail: missingPurchase
+        ? "Sem esse valor, margem real e risco de compra ficam parciais."
+        : overCeiling
+          ? "Valor acima do teto recomendado exige renegociacao ou aceitacao de risco."
+          : "Valor dentro do teto calculado para a margem minima.",
+      tone: missingPurchase ? "amber" as const : overCeiling ? "red" as const : "emerald" as const,
+    },
+    {
+      label: "5. Preco de anuncio",
+      value: decision.suggestedPrice ? formatCurrency(decision.suggestedPrice) : "Sem decisao",
+      detail: decision.marginPercent !== null
+        ? `Margem estimada de ${decision.marginPercent}% no preco sugerido.`
+        : "Preco depende de FIPE, compra ou referencia manual.",
+      tone: guidance.tone === "danger" ? "red" as const : guidance.tone === "warning" ? "amber" as const : "emerald" as const,
+    },
+  ];
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex flex-col gap-1 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-slate-950">Funil tecnico da recomendacao</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            Mostra por que o motor chegou ao preco: referencia, conservacao, teto, compra da loja e anuncio. UF entra como contexto comercial; o preco FIPE continua nacional no motor atual.
+          </p>
+        </div>
+        <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+          guidance.tone === "danger"
+            ? "border-red-200 bg-red-50 text-red-700"
+            : guidance.tone === "warning"
+              ? "border-amber-200 bg-amber-50 text-amber-700"
+              : "border-emerald-200 bg-emerald-50 text-emerald-700"
+        }`}>
+          {guidance.title}
+        </span>
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-5">
+        {steps.map((step) => (
+          <div key={step.label} className={`rounded-lg border px-3 py-2 ${getFunnelToneClass(step.tone)}`}>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600">{step.label}</p>
+            <p className="mt-1 text-sm font-black leading-5 text-slate-950">{step.value}</p>
+            <p className="mt-1 text-[11px] leading-4 text-slate-600">{step.detail}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function getFunnelToneClass(tone: "slate" | "sky" | "emerald" | "amber" | "red") {
+  return {
+    slate: "border-slate-200 bg-slate-50",
+    sky: "border-sky-200 bg-sky-50",
+    emerald: "border-emerald-200 bg-emerald-50",
+    amber: "border-amber-200 bg-amber-50",
+    red: "border-red-200 bg-red-50",
+  }[tone];
+}
+
+function getLiquidityToneClass(tone: "default" | "success" | "warning" | "danger") {
+  return {
+    default: "border-slate-200 bg-slate-50",
+    success: "border-emerald-200 bg-emerald-50",
+    warning: "border-amber-200 bg-amber-50",
+    danger: "border-red-200 bg-red-50",
+  }[tone];
+}
+
+function LiquiditySensitivityChart({
+  insight,
+  targetMargin,
+}: {
+  insight: MarketLiquidityInsight;
+  targetMargin: number;
+}) {
+  const baseline = insight.bestPurchasePrice ?? insight.maxRiskPurchasePrice ?? insight.competitivePurchasePrice;
+
+  if (!baseline) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <p className="text-sm font-semibold text-slate-950">Sensibilidade compra x margem</p>
+        <p className="mt-1 text-xs leading-5 text-slate-500">Sem referencia suficiente para montar o grafico tecnico.</p>
+      </div>
+    );
+  }
+
+  const rows = [-8, -4, 0, 4, 8].map((percent) => {
+    const purchase = Math.round(baseline * (1 + percent / 100));
+    const listing = Math.round(purchase / (1 - targetMargin / 100));
+    const risk = insight.maxRiskPurchasePrice && purchase > insight.maxRiskPurchasePrice ? "Acima do teto" : percent <= 0 ? "Boa compra" : "Negociar";
+    return { percent, purchase, listing, risk };
+  });
+
+  const maxListing = Math.max(...rows.map((row) => row.listing));
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex flex-col gap-1 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-slate-950">Grafico tecnico: compra x margem</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            Simula como pequenas mudancas no valor de compra exigem preco de anuncio maior para manter {targetMargin}% de margem. Ajuda a negociar antes de cadastrar no estoque.
+          </p>
+        </div>
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+          Base {formatCurrency(baseline)}
+        </span>
+      </div>
+      <div className="mt-3 space-y-2">
+        {rows.map((row) => (
+          <div key={row.percent} className="grid gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-xs md:grid-cols-[7rem_1fr_8rem] md:items-center">
+            <div>
+              <p className="font-semibold text-slate-950">{row.percent > 0 ? "+" : ""}{row.percent}% compra</p>
+              <p className="text-slate-500">{formatCurrency(row.purchase)}</p>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-white">
+              <div className="h-full rounded-full bg-emerald-600" style={{ width: `${Math.max(12, Math.round((row.listing / maxListing) * 100))}%` }} />
+            </div>
+            <div className="md:text-right">
+              <p className="font-black text-slate-950">{formatCurrency(row.listing)}</p>
+              <p className={row.risk === "Acima do teto" ? "font-semibold text-red-700" : row.risk === "Boa compra" ? "font-semibold text-emerald-700" : "font-semibold text-amber-700"}>{row.risk}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DecisionContextCards({
+  conditionLabel,
+  conditionEffect,
+  targetMargin,
+  intendedPayment,
+  purchaseCeiling,
+  referenceQuality,
+  marketContext,
+  marketLiquidity,
+  hasFipe,
+}: {
+  conditionLabel: string;
+  conditionEffect: string;
+  targetMargin: number;
+  intendedPayment: number | null;
+  purchaseCeiling: number | null;
+  referenceQuality: string;
+  marketContext: MarketContext;
+  marketLiquidity: MarketLiquidityInsight;
+  hasFipe: boolean;
+}) {
+  const overCeiling = intendedPayment !== null && purchaseCeiling !== null && intendedPayment > purchaseCeiling;
+  const items = [
+    {
+      label: "Conservacao aplicada",
+      value: conditionLabel,
+      detail: conditionEffect,
+      tone: "default" as const,
+    },
+    {
+      label: "Margem minima",
+      value: `${targetMargin}%`,
+      detail: "Meta usada para calcular lucro bruto e teto maximo de compra.",
+      tone: "success" as const,
+    },
+    {
+      label: "Compra da loja",
+      value: intendedPayment ? formatCurrency(intendedPayment) : "Nao informado",
+      detail: purchaseCeiling
+        ? `Teto recomendado: ${formatCurrency(purchaseCeiling)}.`
+        : "Informe valor de compra e preco para calcular o teto.",
+      tone: overCeiling ? "danger" as const : intendedPayment ? "success" as const : "warning" as const,
+    },
+    {
+      label: "Referencia FIPE",
+      value: referenceQuality,
+      detail: hasFipe ? "Base automatica usada para apoiar a decisao comercial." : "Leitura manual ou parcial; confirme antes de fechar.",
+      tone: hasFipe ? "success" as const : "warning" as const,
+    },
+    {
+      label: "UF de mercado",
+      value: marketContext.requestedUf ?? "Brasil",
+      detail: marketContext.regionalPricingAvailable
+        ? "Preco regional conectado ao motor."
+        : `Liquidez ${marketLiquidity.score}/100; FIPE atual segue nacional.`,
+      tone: marketLiquidity.tone,
+    },
+  ];
+
+  return (
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+      {items.map((item) => (
+        <StandaloneMetric key={item.label} label={item.label} value={item.value} detail={item.detail} tone={item.tone} />
+      ))}
     </div>
   );
 }
@@ -830,12 +1022,12 @@ function DecisionFormula({
     {
       label: "FIPE ajustada pela conservação",
       value: decision.adjustedFipe,
-      detail: "preço FIPE multiplicado pelo fator do estado do veículo",
+      detail: "preco FIPE multiplicado pelo fator de conservacao do veiculo",
     },
     {
       label: "Minimo pela margem minima",
       value: decision.suggestedByMargin,
-      detail: `valor pretendido de compra + ${decision.targetMargin}%`,
+      detail: `preco minimo para preservar ${decision.targetMargin}% de margem sobre o anuncio`,
     },
     {
       label: "Referencia FIPE informada",
@@ -850,7 +1042,7 @@ function DecisionFormula({
         <div>
           <p className="text-sm font-semibold text-slate-950">Como o preço sugerido para anunciar foi calculado</p>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            O painel escolhe o maior valor entre FIPE ajustada e minimo pela margem desejada. A referencia FIPE informada so vira fallback quando faltam esses dados. E referencia comercial para negociar agora, nao previsao de venda futura.
+            O painel escolhe o maior valor entre FIPE ajustada e minimo pela margem desejada. A referencia FIPE informada so vira fallback quando faltam esses dados. E uma referencia comercial para negociar agora, nao previsao de venda futura.
           </p>
         </div>
         <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
@@ -870,7 +1062,7 @@ function DecisionFormula({
         <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
           <p className="text-xs font-semibold text-slate-700">Fórmula de lucro e margem</p>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            Lucro bruto = preço sugerido para anunciar menos valor que pretende pagar. Margem = lucro bruto dividido pelo preço sugerido para anunciar.
+            Lucro bruto = preco sugerido para anunciar menos valor de compra da loja. Margem = lucro bruto dividido pelo preco sugerido para anunciar.
           </p>
         </div>
         <div className={`rounded-lg border px-3 py-2 ${guidance.tone === "danger" ? "border-red-200 bg-red-50" : guidance.tone === "warning" ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"}`}>
@@ -885,15 +1077,6 @@ function DecisionFormula({
           ) : null}
         </div>
       </div>
-    </div>
-  );
-}
-
-function DiagnosticPill({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="rounded-lg border border-white/70 bg-white/70 px-3 py-2">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-0.5 font-semibold text-slate-950">{value}</p>
     </div>
   );
 }
@@ -977,7 +1160,7 @@ function FipeHistoryTimeline({
         </div>
       </div>
 
-      <div className="mt-4 overflow-hidden">
+      <div className="admin-chart-frame mt-4 rounded-lg">
         <svg
           className="h-auto w-full rounded-lg border border-slate-100 bg-slate-50"
           viewBox={`0 0 ${width} ${height}`}
@@ -1034,8 +1217,8 @@ function FipeHistoryTimeline({
       </div>
 
       <div className="mt-3 grid gap-2 text-xs leading-5 text-slate-600 md:grid-cols-2">
-        <p className="rounded-lg bg-slate-50 px-3 py-2">Esta serie vem do historico mensal do provedor. Ela ajuda a enxergar queda, estabilidade ou valorizacao antes de definir o preco de anuncio.</p>
-        <p className="rounded-lg bg-slate-50 px-3 py-2">A decisao final continua dependendo do valor que pretende pagar, conservacao do veiculo, margem alvo e validacao na FIPE oficial.</p>
+        <p className="rounded-lg bg-slate-50 px-3 py-2">Esta serie vem do historico mensal do provedor. Diferenca menor/maior e a distancia entre a menor e a maior FIPE da janela; valor alto pede mais cautela.</p>
+        <p className="rounded-lg bg-slate-50 px-3 py-2">A decisao final continua dependendo do valor de compra da loja, conservacao do veiculo, margem alvo e validacao na FIPE oficial.</p>
       </div>
     </div>
   );
@@ -1090,7 +1273,7 @@ function SingleHistoryReference({
         <div className="min-w-0">
           <p className="text-sm font-semibold text-slate-950">Sem serie suficiente para grafico em linha</p>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Para {vehicleTitle}, use a FIPE encontrada como base atual e combine com valor que pretende pagar, conservacao do veiculo e margem alvo.
+            Para {vehicleTitle}, use a FIPE encontrada como base atual e combine com valor de compra da loja, conservacao do veiculo e margem alvo.
           </p>
           <div className="mt-3 grid gap-2 text-xs leading-5 text-slate-600 sm:grid-cols-2">
             <p className="rounded-lg bg-white px-3 py-2">Preco sugerido para anunciar continua sendo referencia comercial atual, nao venda futura.</p>
@@ -1116,7 +1299,7 @@ function PriceTimeline({
       <div className="rounded-xl border border-slate-200 bg-white p-4">
         <p className="text-sm font-semibold text-slate-950">Comparação por ano-modelo</p>
         <p className="mt-1 text-xs leading-5 text-slate-500">
-          Selecione uma sugestão de modelo e clique em Comparar para consultar valores FIPE por ano-modelo.
+          Selecione uma sugestao de modelo e clique em Gerar recomendacao para consultar valores FIPE por ano-modelo.
         </p>
       </div>
     );
@@ -1193,11 +1376,11 @@ function PriceTimeline({
           {hasExpandedAxis ? <TimelineSummary label="Eixo visual" value={axisPeriodLabel} tone="muted" /> : null}
           <TimelineSummary label={`Mínima ${minPoint.year}`} value={formatCurrency(minPoint.price)} tone="muted" />
           <TimelineSummary label={`Máxima ${maxPoint.year}`} value={formatCurrency(maxPoint.price)} tone="success" />
-          <TimelineSummary label="Diferença menor/maior" value={`${formatCurrency(absoluteVariation)} · ${percentVariation}%`} tone={percentVariation >= 8 ? "warning" : "muted"} />
+          <TimelineSummary label="Amplitude FIPE" value={`${formatCurrency(absoluteVariation)} · ${percentVariation}%`} tone={percentVariation >= 8 ? "warning" : "muted"} />
         </div>
       </div>
 
-      <div className="mt-4 overflow-hidden">
+      <div className="admin-chart-frame mt-4 rounded-lg">
         <svg
           className="h-auto w-full rounded-lg border border-slate-100 bg-slate-50"
           viewBox={`0 0 ${width} ${height}`}
@@ -1314,7 +1497,7 @@ function PriceTimeline({
       ) : null}
       <div className="mt-3 grid gap-2 text-xs leading-5 text-slate-600 md:grid-cols-2">
         <p className="rounded-lg bg-slate-50 px-3 py-2">O modo automático mostra apenas anos com FIPE encontrada. Use Do ano-modelo até hoje para enxergar lacunas sem projetar preço futuro.</p>
-        <p className="rounded-lg bg-slate-50 px-3 py-2">Para decisão comercial, combine esta variação com custo pago, estado do veículo e margem alvo.</p>
+        <p className="rounded-lg bg-slate-50 px-3 py-2">Para decisão comercial, combine esta variação com custo pago, conservacao do veiculo e margem alvo.</p>
       </div>
     </div>
   );
@@ -1376,7 +1559,7 @@ function SingleReferenceTimeline({
         <div className="min-w-0">
           <p className="text-sm font-semibold text-slate-950">Sem série suficiente para gráfico em linha</p>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Para {point.title}, o motor encontrou somente uma referência de preço. O melhor caminho é usar esta FIPE como base atual, combinar com valor que pretende pagar, conservação do veículo e margem alvo.
+            Para {point.title}, o motor encontrou somente uma referencia de preco. O melhor caminho e usar esta FIPE como base atual, combinar com valor de compra da loja, conservacao do veiculo e margem alvo.
           </p>
           <div className="mt-3 grid gap-2 text-xs leading-5 text-slate-600 sm:grid-cols-2">
             <p className="rounded-lg bg-white px-3 py-2">Preço sugerido para anunciar continua sendo referência comercial atual, não venda futura.</p>
@@ -1444,6 +1627,11 @@ function formatCompactCurrency(value: number): string {
   return formatCurrency(value);
 }
 
+function formatRange(min: number | null, max: number | null): string {
+  if (!min || !max) return "Sem faixa";
+  return `${formatCurrency(min)} a ${formatCurrency(max)}`;
+}
+
 function formatNullablePercent(value?: number | null): string {
   return typeof value === "number" && Number.isFinite(value) ? `${Math.round(value)}%` : "Nao informado";
 }
@@ -1470,7 +1658,7 @@ function getHistoryTrend(points: FipePriceHistoryPoint[]): HistoryTrend {
   if (points.length < 2) {
     return {
       label: "Sem serie",
-      detail: "Historico insuficiente para indicar tendencia",
+      detail: "Historico insuficiente; use a FIPE atual como referencia sem inferir tendencia",
       tone: "warning",
     };
   }
@@ -1483,7 +1671,7 @@ function getHistoryTrend(points: FipePriceHistoryPoint[]): HistoryTrend {
   if (Math.abs(percent) <= 2) {
     return {
       label: "Estavel",
-      detail: `${formatCurrency(absolute)} no periodo filtrado`,
+      detail: `Oscilou ${formatCurrency(Math.abs(absolute))} no periodo filtrado; leitura sem movimento relevante`,
       tone: "default",
     };
   }
@@ -1491,14 +1679,14 @@ function getHistoryTrend(points: FipePriceHistoryPoint[]): HistoryTrend {
   if (percent > 0) {
     return {
       label: `Subiu ${percent}%`,
-      detail: `${formatCurrency(absolute)} acima de ${first.label}`,
+      detail: `${formatCurrency(absolute)} acima de ${first.label}; historico favoravel, sem garantia futura`,
       tone: "success",
     };
   }
 
   return {
     label: `Caiu ${Math.abs(percent)}%`,
-    detail: `${formatCurrency(Math.abs(absolute))} abaixo de ${first.label}`,
+    detail: `${formatCurrency(Math.abs(absolute))} abaixo de ${first.label}; negocie compra com mais cautela`,
     tone: "danger",
   };
 }
@@ -1569,9 +1757,6 @@ function average(values: number[]): number | null {
   return values.reduce((total, value) => total + value, 0) / values.length;
 }
 
-function sum(values: number[]): number {
-  return values.reduce((total, value) => total + value, 0);
-}
 
 function getPricingStatus({
   marginPercent,
@@ -1591,65 +1776,6 @@ function getPricingStatus({
   if (marginPercent !== null && marginPercent < targetMargin) return { label: "Abaixo da meta", tone: "danger" };
   if (currentGap > 0) return { label: "Oportunidade", tone: "success" };
   return { label: "Dentro da meta", tone: "muted" };
-}
-
-function getPrimaryInsight({
-  rows,
-  riskRows,
-  attentionRows,
-  positiveGapRows,
-  revenueGap,
-  targetMargin,
-}: {
-  rows: unknown[];
-  riskRows: unknown[];
-  attentionRows: unknown[];
-  positiveGapRows: unknown[];
-  revenueGap: number;
-  targetMargin: number;
-}): { icon: LucideIcon; message: string; toneClass: string; iconClass: string } {
-  if (rows.length === 0) {
-    return {
-      icon: Gauge,
-      message: "Nenhum veículo aparece com os filtros atuais. Ajuste a visão ou use o comparativo avulso para simular um modelo antes do cadastro.",
-      toneClass: "border-slate-200 bg-white",
-      iconClass: "text-slate-500",
-    };
-  }
-
-  if (riskRows.length > 0) {
-    return {
-      icon: AlertTriangle,
-      message: `${riskRows.length} veículo(s) estão abaixo da margem alvo de ${targetMargin}%. Priorize custo, preço de anúncio e FIPE desses itens antes de promover.`,
-      toneClass: "border-red-200 bg-red-50",
-      iconClass: "text-red-700",
-    };
-  }
-
-  if (attentionRows.length > 0) {
-    return {
-      icon: Target,
-      message: `${attentionRows.length} veículo(s) ainda precisam de custo ou FIPE para uma análise completa. Complete esses dados para reduzir decisão manual.`,
-      toneClass: "border-amber-200 bg-amber-50",
-      iconClass: "text-amber-700",
-    };
-  }
-
-  if (revenueGap > 0 && positiveGapRows.length > 0) {
-    return {
-      icon: LineChart,
-      message: `Há ${positiveGapRows.length} oportunidade(s) de ajuste positivo, com potencial total de ${formatCurrency(revenueGap)} sobre os preços atuais.`,
-      toneClass: "border-emerald-200 bg-emerald-50",
-      iconClass: "text-emerald-700",
-    };
-  }
-
-  return {
-    icon: CheckCircle2,
-    message: "A precificação filtrada está coerente com a margem alvo e sem alerta crítico. Use o comparativo avulso para validar novos modelos antes do cadastro.",
-    toneClass: "border-emerald-200 bg-emerald-50",
-    iconClass: "text-emerald-700",
-  };
 }
 
 function getStandaloneAction({

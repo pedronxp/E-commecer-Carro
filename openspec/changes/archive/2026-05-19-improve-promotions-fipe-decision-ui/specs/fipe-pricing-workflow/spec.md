@@ -1,8 +1,5 @@
-# fipe-pricing-workflow Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change admin-commercial-operations-foundation. Update Purpose after archive.
-## Requirements
 ### Requirement: FIPE lookup exposes source and confidence
 The system SHALL display FIPE or pricing estimates with provider source, reference period, confidence, reference quality, and fallback state in language suitable for commercial decision-making.
 
@@ -69,35 +66,7 @@ The system SHALL calculate pricing suggestions from explicit parameters includin
 - **AND** the UI uses the mode to decide how much explanation to render without changing the underlying price calculation
 - **AND** Basic keeps the decision focused, Plus adds managerial FIPE/source context, and Advanced adds formula, funnel, analytics, and technical chart explanation
 
-### Requirement: FIPE comparison supports standalone and registered vehicles
-The system SHALL support both comparing a vehicle before registration and reviewing pricing for vehicles already in stock.
-
-#### Scenario: Operator compares before creating vehicle
-- **WHEN** an operator enters model, year, vehicle type, and optional cost without selecting a registered vehicle
-- **THEN** the system returns a standalone comparison that can guide registration
-
-#### Scenario: Operator reviews registered stock
-- **WHEN** an operator opens the FIPE comparison page
-- **THEN** the system lists registered vehicles with current price, FIPE reference, purchase cost, suggested price, margin, and risk state
-
-#### Scenario: Vehicle has negative or risky margin
-- **WHEN** calculated margin is below zero or below an accepted threshold
-- **THEN** the UI highlights the vehicle as a pricing risk
-
-### Requirement: FIPE workflow integrates with vehicle registration
-The system SHALL allow FIPE lookup and pricing comparison data to support the vehicle creation flow without making provider data mandatory.
-
-#### Scenario: Operator selects a FIPE suggestion during vehicle creation
-- **WHEN** an operator selects a provider suggestion in the vehicle creation form
-- **THEN** the system fills compatible fields such as title, year, brand, reference price, fuel, and description where safe
-
-#### Scenario: Operator overrides provider value
-- **WHEN** an operator edits the FIPE or sale price after an automatic suggestion
-- **THEN** the manually edited value is preserved and not overwritten by later automatic suggestions
-
-#### Scenario: Provider lookup fails during vehicle creation
-- **WHEN** the provider request fails or returns no match
-- **THEN** the form remains usable and the operator can complete registration with manual values
+## ADDED Requirements
 
 ### Requirement: FIPE analytical reading is self-explanatory
 The system SHALL present FIPE analytical data as a manager-readable interpretation, not only raw provider metrics.
@@ -121,4 +90,3 @@ The system SHALL present FIPE analytical data as a manager-readable interpretati
 - **WHEN** a FIPE chart is rendered on `/admin/promotions`
 - **THEN** the chart includes readable axes, selected/reference point emphasis, min/max callouts, missing-data treatment, and explanatory copy below the chart
 - **AND** if the provider returns only one usable reference, the page shows a non-line visual state that avoids implying a trend
-
